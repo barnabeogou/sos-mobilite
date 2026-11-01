@@ -304,6 +304,54 @@ select tst.ok((select count(*) from public.notifications where type = 'request_c
 set role authenticated;
 
 -- ---------------------------------------------------------------------------
+-- Modèle « VTC » : chaque pro voit lui-même les demandes de sa zone
+-- ---------------------------------------------------------------------------
+select tst.login('00000000-0000-0000-0000-0000000000a2');
+select public.set_my_availability(false);
+
+-- Demande à ≈ 7,8 km du pro a2 (zone 15 km) : hors du rayon initial de 5 km de la demande,
+-- et à ≈ 10,7 km du pro a1 (zone 10 km).
+select tst.login('00000000-0000-0000-0000-0000000000c2');
+insert into tst.ctx
+select 'req3', (public.create_service_request((select id from public.service_categories where slug = 'batterie'),
+                5.4150, -4.0050, true)).id::text;
+reset role;
+select tst.ok((select count(*) from public.assignments where request_id = (select v::uuid from tst.ctx where k='req3')) = 0,
+              'aucun pro disponible dans sa zone au moment de la demande');
+set role authenticated;
+
+select tst.login('00000000-0000-0000-0000-0000000000a2');
+select public.set_my_availability(true);
+select tst.ok((select count(*) from public.list_open_proposals()
+                where request_id = (select v::uuid from tst.ctx where k='req3')) = 1,
+              'un pro qui se rend disponible voit aussitôt la demande déjà en cours dans sa zone');
+select tst.ok((select distance_km between 7 and 8.5 from public.list_open_proposals()
+                where request_id = (select v::uuid from tst.ctx where k='req3')),
+              'distance indiquée au pro');
+select public.respond_to_assignment((select assignment_id from public.list_open_proposals()
+                                      where request_id = (select v::uuid from tst.ctx where k='req3')), false, 'Trop loin');
+select tst.ok((select count(*) from public.list_open_proposals()
+                where request_id = (select v::uuid from tst.ctx where k='req3')) = 0,
+              'une demande refusée n''est plus reproposée');
+
+select tst.login('00000000-0000-0000-0000-0000000000a1');
+select tst.ok((select count(*) from public.list_open_proposals()
+                where request_id = (select v::uuid from tst.ctx where k='req3')) = 0,
+              'hors de la zone du pro : demande non visible');
+update public.mechanic_profiles set service_radius_km = 12 where id = auth.uid();
+select tst.ok((select count(*) from public.list_open_proposals()
+                where request_id = (select v::uuid from tst.ctx where k='req3')) = 1,
+              'zone agrandie : la demande apparaît sans intervention de l''administration');
+select tst.ok((public.respond_to_assignment((select assignment_id from public.list_open_proposals()
+                where request_id = (select v::uuid from tst.ctx where k='req3')), true)).status = 'accepted',
+              'le pro accepte directement la demande');
+select tst.ok((select count(*) from public.list_open_proposals()) = 0,
+              'un pro en mission ne reçoit pas d''autre demande');
+
+select tst.login('00000000-0000-0000-0000-0000000000c2');
+select public.cancel_request((select v::uuid from tst.ctx where k='req3'), 'Test terminé');
+
+-- ---------------------------------------------------------------------------
 -- Suspension
 -- ---------------------------------------------------------------------------
 select tst.login('00000000-0000-0000-0000-0000000000d1');

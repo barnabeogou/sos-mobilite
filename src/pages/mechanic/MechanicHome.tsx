@@ -31,7 +31,7 @@ export default function MechanicHome() {
   const checklist = useOnboardingChecklist();
   const approved = mech.data?.verification_status === 'approved';
 
-  const proposals = useQuery({ queryKey: ['proposals', profile.id], queryFn: listOpenProposals, enabled: approved, refetchInterval: 30_000 });
+  const proposals = useQuery({ queryKey: ['proposals', profile.id], queryFn: listOpenProposals, enabled: approved, refetchInterval: 15_000 });
   const missions = useQuery({ queryKey: ['missions', profile.id], queryFn: () => listMyMissions(profile.id) });
   const payments = useQuery({ queryKey: ['mechanic-payments', profile.id], queryFn: () => listMyPayments(profile.id) });
   useRealtimeInvalidate('assignments', `mechanic_id=eq.${profile.id}`, [['proposals', profile.id]], approved);

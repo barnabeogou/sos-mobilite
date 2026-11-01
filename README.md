@@ -106,7 +106,7 @@ Réglages à faire une fois dans les tableaux de bord :
 
 ```bash
 npm test          # tests unitaires et d'interface (Vitest) — règles métier, rappels, validations, composants
-npm run test:db   # migrations + 74 contrôles SQL de bout en bout sur un PostgreSQL local jetable
+npm run test:db   # migrations + 82 contrôles SQL de bout en bout sur un PostgreSQL local jetable
 npm run build     # vérification TypeScript + build de production
 ```
 

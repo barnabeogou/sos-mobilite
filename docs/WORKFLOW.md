@@ -36,11 +36,13 @@
 |---|---|
 | Consentement explicite à la localisation obligatoire | `create_service_request` |
 | Une seule demande active par client | `create_service_request` |
-| Seuls les pros **validés**, disponibles, non suspendus, compétents (spécialité + type de véhicule), sans mission en cours et dans le rayon (de la demande **et** du pro) sont sollicités | `match_mechanics` |
+| Seuls les pros **validés**, disponibles, non suspendus, compétents (spécialité + type de véhicule) et sans mission en cours sont sollicités, dès que la demande est dans **leur zone d’intervention** (ou dans le rayon élargi de la demande s’il est plus grand) | `match_mechanics` |
+| Comme une appli de VTC, chaque pro disponible voit lui-même les demandes en recherche de sa zone : en se rendant disponible, en terminant une mission ou en agrandissant sa zone, les demandes déjà en cours apparaissent (rafraîchissement automatique + temps réel). Aucune intervention de l’administration n’est nécessaire | `offer_open_requests`, `list_open_proposals` |
 | Avant acceptation, le pro ne voit qu’une position arrondie (≈ 1 km), sans coordonnées du client | `list_open_proposals` |
 | Le premier pro confirmé obtient la mission ; les autres sont prévenus | `respond_to_assignment` (verrou `FOR UPDATE`) |
 | Propositions limitées dans le temps (10 min par défaut) | `platform_settings.proposal_timeout_minutes` |
-| Personne ne répond : élargissement du rayon (5 → 10 → 20 → 30 km), alerte des opérations | `expand_search` |
+| Personne ne répond : le client peut élargir le rayon (5 → 10 → 20 → 30 km) pour atteindre des pros au-delà de leur zone, alerte des opérations | `expand_search` |
+| Une proposition expirée est reproposée tant que la demande est en recherche ; une proposition refusée ne l’est jamais | `offer_open_requests` |
 | Pas de déplacement sans devis validé | `start_route` |
 | Code d’arrivée : bon professionnel / bon client | `verify_arrival_code` |
 | Aucun supplément sans accord : un nouveau devis doit être accepté, la mission ne peut pas être terminée avant | `submit_quote`, `complete_mission` |

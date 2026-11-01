@@ -39,6 +39,6 @@ Le rôle administrateur ne peut jamais être obtenu à l’inscription.
 
 ## Tests
 
-`npm run test:db` vérifie automatiquement 74 points, dont : isolation des clients, absence d’auto-validation,
+`npm run test:db` vérifie automatiquement 82 points, dont : isolation des clients, absence d’auto-validation,
 mécanicien non validé jamais sollicité, position arrondie, code d’arrivée inaccessible au pro, refus des écritures
 directes, niveaux administrateur, dépôts de fichiers hors de son dossier refusés, RPC fermées aux anonymes.
