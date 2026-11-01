@@ -5,6 +5,8 @@
  * Prend des captures d'écran de chaque étape dans docs/captures/.
  *
  * Usage : APP=http://localhost:5173 DATABASE_URL=... node tests/e2e/journey.mjs
+ *         ONLINE=1 : paiement dans l'application (Edge Function « payments » + faux CinetPay,
+ *                    voir tests/e2e/README) puis versement automatique au professionnel.
  */
 import { createRequire } from 'node:module';
 const { chromium } = createRequire(import.meta.url)('playwright');
@@ -12,6 +14,7 @@ import pg from 'pg';
 import { mkdirSync } from 'node:fs';
 
 const APP = process.env.APP ?? 'http://localhost:5173';
+const ONLINE = process.env.ONLINE === '1';
 const OUT = process.env.OUT ?? 'docs/captures';
 mkdirSync(OUT, { recursive: true });
 const db = new pg.Client({ connectionString: process.env.DATABASE_URL });
@@ -19,6 +22,12 @@ await db.connect();
 // Base de test vierge à chaque exécution
 await db.query('truncate auth.users cascade');
 await db.query('alter sequence public.request_ref_seq restart; alter sequence public.receipt_seq restart');
+// (le truncate en cascade vide aussi les paramètres : on rétablit celui du paiement en ligne)
+await db.query(
+  `insert into public.platform_settings (key, value) values ('online_payment_provider', $1)
+   on conflict (key) do update set value = excluded.value`,
+  [ONLINE ? '"cinetpay"' : 'null'],
+);
 
 const browser = await chromium.launch();
 const mobile = { viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true, locale: 'fr-FR', timezoneId: 'Africa/Abidjan' };
@@ -274,16 +283,32 @@ await shot(mech, 'pro-intervention');
 
 step('Fin de mission et paiement');
 await mech.getByRole('button', { name: 'Terminer la mission' }).click();
-await mech.getByText('Montant à encaisser').first().waitFor();
-await mech.getByLabel('Moyen de paiement').selectOption('wave');
-await mech.getByRole('button', { name: 'J’ai reçu le paiement' }).click();
-await mech.getByText(/En attente de la confirmation du client/).first().waitFor();
-await shot(mech, 'pro-paiement-declare');
+if (ONLINE) {
+  await mech.getByText(/dans l’application\. Votre part/).first().waitFor();
+  await mech.getByText('Compte de versement manquant').first().waitFor();
+  await shot(mech, 'pro-attente-paiement-en-ligne');
 
-await client.reload();
-await client.getByText('Confirmer la fin de l’intervention').first().waitFor();
-await shot(client, 'client-confirmation');
-await client.getByRole('button', { name: 'Tout est en ordre' }).click();
+  await client.reload();
+  await client.getByText('Payer l’intervention').first().waitFor();
+  await shot(client, 'client-payer');
+  await client.getByRole('button', { name: 'Payer 48 000 FCFA' }).click();
+  await client.waitForURL(/localhost:54340\/pay\//);
+  await client.getByText('48 000 FCFA').first().waitFor();
+  await shot(client, 'guichet-paiement-test');
+  await client.getByRole('button', { name: 'Valider le paiement' }).click();
+  await client.waitForURL(/paiement=retour/, { timeout: 15_000 });
+} else {
+  await mech.getByText('Montant à encaisser').first().waitFor();
+  await mech.getByLabel('Moyen de paiement').selectOption('wave');
+  await mech.getByRole('button', { name: 'J’ai reçu le paiement' }).click();
+  await mech.getByText(/En attente de la confirmation du client/).first().waitFor();
+  await shot(mech, 'pro-paiement-declare');
+
+  await client.reload();
+  await client.getByText('Confirmer la fin de l’intervention').first().waitFor();
+  await shot(client, 'client-confirmation');
+  await client.getByRole('button', { name: 'Tout est en ordre' }).click();
+}
 await client.getByText('Évaluez la prestation').first().waitFor();
 await client.getByRole('radio', { name: '5 sur 5' }).click();
 await client.getByPlaceholder('Un commentaire ? (facultatif)').fill('Arrivé en 15 minutes, prix discuté et respecté. Merci !');
@@ -295,9 +320,32 @@ await client.getByText(/REC-\d{4}-\d{6}/).first().waitFor();
 await shot(client, 'recu');
 
 // ---------------------------------------------------------------------------
+if (ONLINE) {
+  step('Versement automatique au professionnel');
+  await mech.reload();
+  await mech.getByText('Payé dans l’application').first().waitFor();
+  await mech.getByText('Votre versement : 42 240 FCFA').first().waitFor();
+  await shot(mech, 'pro-mission-payee-en-ligne');
+  await mech.goto(`${APP}/pro/profil`);
+  await mech.getByText('Compte de versement').first().waitFor();
+  await mech.getByLabel('Opérateur').selectOption('orange_money');
+  await mech.getByLabel('Numéro', { exact: true }).fill('+225 07 98 76 54 32');
+  await mech.getByRole('button', { name: 'Enregistrer le compte' }).click();
+  await mech.getByText('1 versement(s) relancé(s)').first().waitFor();
+  await shot(mech, 'pro-compte-versement');
+}
+
 step('Tableaux de bord');
 await mech.goto(`${APP}/pro/paiements`);
 await mech.getByText('Formules professionnelles').first().waitFor();
+if (ONLINE) {
+  // Le faux opérateur valide le transfert puis notifie : la page se met à jour à la visite suivante
+  for (let i = 0; i < 10 && !(await mech.getByText('Versé', { exact: true }).count()); i++) {
+    await mech.waitForTimeout(700);
+    await mech.reload();
+  }
+  await mech.getByText('Versé', { exact: true }).first().waitFor();
+}
 await shot(mech, 'pro-gains');
 await admin.goto(`${APP}/admin`);
 await admin.getByText('Interventions terminées').first().waitFor();
@@ -307,6 +355,14 @@ await admin.getByRole('combobox', { name: 'Statut' }).selectOption('all');
 await admin.getByText('Batterie déchargée').first().click();
 await admin.getByText('Historique').first().waitFor();
 await shot(admin, 'admin-detail-demande');
+if (ONLINE) {
+  await admin.goto(`${APP}/admin/paiements`);
+  await admin.getByText('Paiement dans l’application').first().waitFor();
+  await shot(admin, 'admin-paiements', false);
+  await admin.getByRole('tab', { name: /Versements/ }).click();
+  await admin.getByText('+225 07 98 76 54 32').first().waitFor();
+  await shot(admin, 'admin-versements', false);
+}
 await admin.goto(`${APP}/admin/parametres`);
 await admin.getByText('Catégories de services').first().waitFor();
 await shot(admin, 'admin-tarifs', false);
@@ -320,6 +376,15 @@ const { rows } = await db.query(
 console.log('\nÉtat final en base :', rows[0]);
 // Devis de 52 000 F négocié à 48 000 F ; commission Starter 12 % → 5 760 F
 if (rows[0].status !== 'closed' || rows[0].amount !== 48000 || rows[0].commission_amount !== 5760) throw new Error('État final inattendu');
+if (ONLINE) {
+  const { rows: po } = await db.query(
+    `select p.channel, p.method, p.commission_settled_at is not null as settled, v.amount, v.status, v.phone, v.attempts
+       from payments p join payouts v on v.payment_id = p.id order by p.created_at desc limit 1`,
+  );
+  console.log('Versement :', po[0]);
+  // 48 000 − 5 760 = 42 240 F versés sur le compte renseigné après coup
+  if (po[0]?.channel !== 'online' || po[0].amount !== 42240 || po[0].status !== 'sent' || po[0].phone !== '+225 07 98 76 54 32') throw new Error('Versement inattendu');
+}
 
 await browser.close();
 await db.end();

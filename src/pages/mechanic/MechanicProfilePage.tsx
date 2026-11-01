@@ -13,6 +13,7 @@ import { Badge, Card, ErrorState, LoadingBlock, Notice, PageHeader } from '@/com
 import { useToast } from '@/components/ui/Overlay';
 import { NamedIcon, VehicleIcon } from '@/components/ui/Icon';
 import { AccountCard } from '@/pages/shared/ProfilePage';
+import { PayoutAccountCard } from '@/components/mechanic/PayoutAccountCard';
 import { useMechanicProfile, useMyDocuments, useMySpecialties } from './useMechanic';
 import { deleteDocument, documentUrl, setMySpecialties, updateMyMechanicProfile, uploadDocument } from '@/services/mechanic.service';
 import { mechanicProfileSchema } from '@/domain/validation';
@@ -230,6 +231,8 @@ export default function MechanicProfilePage() {
           </Button>
         </form>
       </Card>
+
+      <PayoutAccountCard mechanic={m} />
 
       <Card>
         <p className="font-bold">Documents justificatifs</p>

@@ -23,8 +23,10 @@ export type RequestStatus =
   | 'expired';
 export type AssignmentStatus = 'proposed' | 'accepted' | 'declined' | 'expired' | 'withdrawn' | 'cancelled';
 export type QuoteStatus = 'proposed' | 'accepted' | 'rejected' | 'superseded';
-export type PaymentMethod = 'cash' | 'orange_money' | 'mtn_momo' | 'wave' | 'card' | 'other';
-export type PaymentStatus = 'declared' | 'confirmed' | 'disputed' | 'refunded';
+export type PaymentMethod = 'cash' | 'orange_money' | 'mtn_momo' | 'moov_money' | 'wave' | 'card' | 'other';
+export type PaymentStatus = 'pending' | 'declared' | 'confirmed' | 'failed' | 'disputed' | 'refunded';
+export type PaymentChannel = 'direct' | 'online';
+export type PayoutStatus = 'pending' | 'processing' | 'sent' | 'failed' | 'cancelled' | 'not_required';
 export type TicketStatus = 'open' | 'in_progress' | 'resolved' | 'closed';
 export type TicketCategory = 'intervention' | 'paiement' | 'litige' | 'compte' | 'securite' | 'autre';
 export type MaintenanceKind = 'vidange' | 'pneus' | 'batterie' | 'freins' | 'revision' | 'assurance' | 'autre';
@@ -108,6 +110,9 @@ export interface MechanicProfile {
   rating_avg: number;
   rating_count: number;
   completed_missions: number;
+  /** Compte Mobile Money sur lequel le pro reçoit ses versements. */
+  payout_method: PaymentMethod | null;
+  payout_phone: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -222,9 +227,39 @@ export interface Payment {
   mechanic_net: number;
   receipt_number: string | null;
   provider_reference: string | null;
+  /** direct = réglé au pro (espèces…), online = payé dans l'application. */
+  channel: PaymentChannel;
+  provider: string | null;
+  provider_transaction_id: string | null;
+  failure_reason: string | null;
+  /** Commission encaissée (en ligne) ou réglée par le pro (espèces) ; null = encore due. */
+  commission_settled_at: string | null;
+  commission_settlement_note: string | null;
+  commission_settled_by: string | null;
   declared_at: string;
   confirmed_at: string | null;
   created_at: string;
+}
+
+/** Versement de sa part au professionnel après un paiement en ligne. */
+export interface Payout {
+  id: string;
+  payment_id: string;
+  mechanic_id: string;
+  gross_amount: number;
+  deducted_commissions: number;
+  rounding_amount: number;
+  amount: number;
+  method: PaymentMethod | null;
+  phone: string | null;
+  status: PayoutStatus;
+  provider_reference: string | null;
+  failure_reason: string | null;
+  attempts: number;
+  note: string | null;
+  created_at: string;
+  updated_at: string;
+  sent_at: string | null;
 }
 
 export interface Review {

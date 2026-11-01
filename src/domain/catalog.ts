@@ -3,6 +3,7 @@ import type {
   MaintenanceKind,
   MechanicKind,
   PaymentMethod,
+  PayoutStatus,
   TicketCategory,
   VehicleType,
 } from '@/types/database';
@@ -84,12 +85,30 @@ export const PAYMENT_METHODS: { value: PaymentMethod; label: string; short: stri
   { value: 'cash', label: 'Espèces', short: 'Espèces' },
   { value: 'orange_money', label: 'Orange Money (hors application)', short: 'Orange Money' },
   { value: 'mtn_momo', label: 'MTN Mobile Money (hors application)', short: 'MTN MoMo' },
+  { value: 'moov_money', label: 'Moov Money (hors application)', short: 'Moov Money' },
   { value: 'wave', label: 'Wave (hors application)', short: 'Wave' },
   { value: 'card', label: 'Carte bancaire (terminal du professionnel)', short: 'Carte' },
   { value: 'other', label: 'Autre', short: 'Autre' },
 ];
 
 export const paymentMethodLabel = (m: PaymentMethod) => PAYMENT_METHODS.find((p) => p.value === m)?.short ?? m;
+
+/** Comptes sur lesquels un professionnel peut recevoir ses versements. */
+export const PAYOUT_METHODS: { value: PaymentMethod; label: string }[] = [
+  { value: 'orange_money', label: 'Orange Money' },
+  { value: 'mtn_momo', label: 'MTN Mobile Money' },
+  { value: 'moov_money', label: 'Moov Money' },
+  { value: 'wave', label: 'Wave' },
+];
+
+export const PAYOUT_STATUS: Record<PayoutStatus, { label: string; tone: 'neutral' | 'success' | 'warning' | 'danger' | 'info' }> = {
+  pending: { label: 'À verser', tone: 'warning' },
+  processing: { label: 'Envoi en cours', tone: 'info' },
+  sent: { label: 'Versé', tone: 'success' },
+  failed: { label: 'Échec', tone: 'danger' },
+  cancelled: { label: 'Annulé', tone: 'neutral' },
+  not_required: { label: 'Compensé', tone: 'neutral' },
+};
 
 export const MAINTENANCE_KINDS: { value: MaintenanceKind; label: string; defaultIntervalDays: number | null }[] = [
   { value: 'vidange', label: 'Vidange', defaultIntervalDays: 90 },

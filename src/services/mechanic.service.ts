@@ -32,6 +32,8 @@ export interface MechanicProfileUpdate {
   commune?: string | null;
   address?: string | null;
   opening_hours?: string | null;
+  payout_method?: PaymentMethod | null;
+  payout_phone?: string | null;
 }
 
 export function updateMyMechanicProfile(userId: string, patch: MechanicProfileUpdate): Promise<MechanicProfile> {

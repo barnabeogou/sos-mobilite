@@ -49,6 +49,10 @@
 | Aucun supplément sans accord : un nouveau devis doit être accepté, la mission ne peut pas être terminée avant | `submit_quote`, `complete_mission` |
 | Montant payé = dernier devis accepté ; commission selon la formule (Starter 12 %, Pro 5 %) | `declare_payment` |
 | « Terminé » confirmé par le client (ou litige documenté) | `confirm_payment`, `report_problem` |
+| Paiement dans l’application : validé uniquement par le serveur après contrôle du statut auprès de CinetPay (jamais par le navigateur), montant identique au devis accepté, multiple de 5 FCFA | `start_online_payment`, `confirm_online_payment` (Edge Function `payments`) |
+| Versement automatique au pro : sa part moins les commissions encore dues sur ses paiements directs ; pas d’envoi sans compte Mobile Money, jamais deux envois | `confirm_online_payment`, `claim_payout`, `record_payout_result` |
+| Paiement direct (espèces) en secours : déclaré par le pro, confirmé par le client ; la commission reste due par le pro | `declare_payment`, `confirm_payment`, `admin_settle_commission` |
+| Double paiement, montant différent ou référence inconnue : rien n’est versé, l’équipe opérations est alertée | `confirm_online_payment`, `payment_attempts` |
 | Avis uniquement après paiement confirmé, un par intervention | `submit_review` |
 | Chaque changement de statut est historisé avec son auteur et son motif | déclencheur `log_request_status` |
 
@@ -62,7 +66,7 @@
 | `quote_accepted` | Devis validé | « Je pars » |
 | `en_route` | En route + code | Saisir le code |
 | `in_progress` | Intervention en cours | Supplément / Terminer |
-| `completed` | À confirmer | Déclarer le paiement |
+| `completed` | À confirmer / à payer | Payer dans l’application, ou déclarer un paiement direct |
 | `paid` | Payée → avis | Paiement confirmé |
 | `closed` | Terminée | Clôturée |
 | `cancelled` / `disputed` / `expired` | Annulée / Litige / Expirée | idem |

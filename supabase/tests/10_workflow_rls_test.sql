@@ -10,7 +10,7 @@ set client_min_messages = warning;
 -- Outils de test
 -- ---------------------------------------------------------------------------
 create schema tst;
-grant usage on schema tst to authenticated, anon;
+grant usage on schema tst to authenticated, anon, service_role;
 
 create function tst.login(p_uid uuid) returns void language sql as $$
   select set_config('request.jwt.claims', json_build_object('sub', p_uid, 'role', 'authenticated')::text, false);
@@ -36,9 +36,9 @@ begin
   raise exception 'ÉCHEC : % — aucune erreur levée', p_msg;
 end $$;
 
-grant execute on all functions in schema tst to authenticated, anon;
+grant execute on all functions in schema tst to authenticated, anon, service_role;
 create table tst.ctx (k text primary key, v text);
-grant all on tst.ctx to authenticated;
+grant all on tst.ctx to authenticated, service_role;
 
 -- ---------------------------------------------------------------------------
 -- Comptes de test (inscription → profils créés par déclencheur)
@@ -434,6 +434,180 @@ select tst.ok((select count(*) from public.notifications where type = 'price_off
 set role authenticated;
 select tst.login('00000000-0000-0000-0000-0000000000c1');
 select public.cancel_request((select v::uuid from tst.ctx where k='req5'), 'Test terminé');
+
+-- ---------------------------------------------------------------------------
+-- Paiements : multiples de 5, espèces en secours, paiement en ligne, reversement
+-- ---------------------------------------------------------------------------
+-- Intervention A (c1 / a2) jusqu'à « terminée »
+select tst.login('00000000-0000-0000-0000-0000000000c1');
+insert into tst.ctx select 'req6', (public.create_service_request((select id from public.service_categories where slug = 'batterie'),
+                5.3400, -4.0060, true)).id::text;
+select tst.login('00000000-0000-0000-0000-0000000000a2');
+select public.respond_to_assignment((select assignment_id from public.list_open_proposals()
+                                      where request_id = (select v::uuid from tst.ctx where k='req6')), true);
+select tst.fails($$ select public.submit_quote((select v::uuid from tst.ctx where k='req6'), 10003) $$,
+                 'INVALID_AMOUNT', 'montant non multiple de 5 refusé (paiement mobile)');
+select public.submit_quote((select v::uuid from tst.ctx where k='req6'), 10000);
+select tst.login('00000000-0000-0000-0000-0000000000c1');
+select public.respond_to_quote((select id from public.quotes where request_id = (select v::uuid from tst.ctx where k='req6')
+                                  and status = 'proposed'), true);
+insert into tst.ctx select 'code6', public.get_arrival_code((select v::uuid from tst.ctx where k='req6'));
+select tst.login('00000000-0000-0000-0000-0000000000a2');
+select public.start_route((select v::uuid from tst.ctx where k='req6'));
+select public.verify_arrival_code((select v::uuid from tst.ctx where k='req6'), (select v from tst.ctx where k='code6'));
+select public.complete_mission((select v::uuid from tst.ctx where k='req6'), 'Batterie rechargée');
+
+-- Paiement en ligne indisponible tant qu'aucun prestataire n'est activé
+select tst.login('00000000-0000-0000-0000-0000000000c1');
+select tst.fails(format($$ select public.start_online_payment(%L) $$, (select v from tst.ctx where k='req6')),
+                 'ONLINE_PAYMENT_DISABLED', 'aucun paiement en ligne simulé sans prestataire');
+reset role;
+update public.platform_settings set value = '"cinetpay"' where key = 'online_payment_provider';
+set role authenticated;
+select tst.login('00000000-0000-0000-0000-0000000000c1');
+insert into tst.ctx select 'ref6', (public.start_online_payment((select v::uuid from tst.ctx where k='req6'))) ->> 'reference';
+select tst.ok((select status = 'pending' and channel = 'online' from public.payments
+                where request_id = (select v::uuid from tst.ctx where k='req6')), 'paiement en ligne commencé');
+select tst.fails(format($$ select public.confirm_online_payment(%L, 10000, 'wave', 'X') $$, (select v from tst.ctx where k='ref6')),
+                 'permission denied', 'un client ne peut pas confirmer lui-même un paiement en ligne');
+select tst.login('00000000-0000-0000-0000-0000000000d1');
+select tst.fails(format($$ select public.admin_resolve_payment((select id from public.payments where request_id = %L), 'confirmed', 'Vu sur capture') $$,
+                        (select v from tst.ctx where k='req6')),
+                 'ONLINE_PAYMENT_NOT_VERIFIED', 'l''administration ne confirme pas à la main un paiement en ligne non vérifié');
+
+-- Espèces en secours : le pro déclare, le client confirme → commission due par le pro
+select tst.login('00000000-0000-0000-0000-0000000000a2');
+select tst.ok((public.declare_payment((select v::uuid from tst.ctx where k='req6'), 'cash')).status = 'declared',
+              'le pro peut déclarer des espèces à la place du paiement en ligne non abouti');
+select tst.login('00000000-0000-0000-0000-0000000000c1');
+select public.confirm_payment((select v::uuid from tst.ctx where k='req6'));
+reset role;
+select tst.ok((select channel = 'direct' and commission_amount = 1200 and commission_settled_at is null from public.payments
+                where request_id = (select v::uuid from tst.ctx where k='req6')), 'commission espèces due par le pro (1 200 F)');
+set role authenticated;
+
+-- Intervention B (c1 / a2), payée en ligne
+select tst.login('00000000-0000-0000-0000-0000000000c1');
+insert into tst.ctx select 'req7', (public.create_service_request((select id from public.service_categories where slug = 'batterie'),
+                5.3400, -4.0060, true)).id::text;
+select tst.login('00000000-0000-0000-0000-0000000000a2');
+select public.respond_to_assignment((select assignment_id from public.list_open_proposals()
+                                      where request_id = (select v::uuid from tst.ctx where k='req7')), true);
+select public.submit_quote((select v::uuid from tst.ctx where k='req7'), 20000);
+select tst.login('00000000-0000-0000-0000-0000000000c1');
+select public.respond_to_quote((select id from public.quotes where request_id = (select v::uuid from tst.ctx where k='req7')
+                                  and status = 'proposed'), true);
+insert into tst.ctx select 'code7', public.get_arrival_code((select v::uuid from tst.ctx where k='req7'));
+select tst.login('00000000-0000-0000-0000-0000000000a2');
+select public.start_route((select v::uuid from tst.ctx where k='req7'));
+select public.verify_arrival_code((select v::uuid from tst.ctx where k='req7'), (select v from tst.ctx where k='code7'));
+select public.complete_mission((select v::uuid from tst.ctx where k='req7'), null);
+select tst.login('00000000-0000-0000-0000-0000000000c1');
+insert into tst.ctx select 'ref7a', (public.start_online_payment((select v::uuid from tst.ctx where k='req7'))) ->> 'reference';
+
+reset role;
+set role service_role;
+select tst.ok((public.confirm_online_payment((select v from tst.ctx where k='ref7a'), 19000, 'wave', 'TX-BAD')) ->> 'status' = 'amount_mismatch',
+              'montant reçu différent : paiement non validé');
+reset role;
+select tst.ok((select status = 'failed' from public.payments where request_id = (select v::uuid from tst.ctx where k='req7')),
+              'paiement marqué en échec, intervention non soldée');
+set role authenticated;
+select tst.login('00000000-0000-0000-0000-0000000000c1');
+insert into tst.ctx select 'ref7', (public.start_online_payment((select v::uuid from tst.ctx where k='req7'))) ->> 'reference';
+-- Le client relance encore le paiement, puis valide finalement la tentative précédente
+insert into tst.ctx select 'ref7b', (public.start_online_payment((select v::uuid from tst.ctx where k='req7'))) ->> 'reference';
+reset role;
+set role service_role;
+insert into tst.ctx select 'pay7', (public.confirm_online_payment((select v from tst.ctx where k='ref7'), 20000, 'wave', 'TX-7')) ::text;
+reset role;
+select tst.ok((select status from public.service_requests where id = (select v::uuid from tst.ctx where k='req7')) = 'paid',
+              'paiement en ligne confirmé par le serveur : intervention payée');
+select tst.ok((select provider_reference = (select v from tst.ctx where k='ref7') from public.payments
+                where request_id = (select v::uuid from tst.ctx where k='req7')),
+              'une tentative précédente finalement validée est rattachée au paiement');
+select tst.ok((select status = 'confirmed' and method = 'wave' and receipt_number is not null and commission_settled_at is not null
+                 from public.payments where request_id = (select v::uuid from tst.ctx where k='req7')),
+              'reçu émis, commission retenue à la source');
+select tst.ok((select gross_amount = 17600 and deducted_commissions = 1200 and amount = 16400 and status = 'pending'
+                 and failure_reason = 'PAYOUT_ACCOUNT_MISSING'
+                 from public.payouts where payment_id = (select id from public.payments where request_id = (select v::uuid from tst.ctx where k='req7'))),
+              'versement = part du pro − commission espèces due (17 600 − 1 200 = 16 400 F)');
+select tst.ok((select commission_settled_by is not null from public.payments where request_id = (select v::uuid from tst.ctx where k='req6')),
+              'la commission espèces est soldée par ce versement');
+set role service_role;
+select tst.ok((public.confirm_online_payment((select v from tst.ctx where k='ref7'), 20000, 'wave', 'TX-7')) -> 'payout' ->> 'id'
+              = (select v::jsonb -> 'payout' ->> 'id' from tst.ctx where k='pay7'), 'confirmation idempotente (notification reçue deux fois)');
+select tst.ok((public.claim_payout((select (v::jsonb -> 'payout' ->> 'id')::uuid from tst.ctx where k='pay7'))).id is null,
+              'pas de versement sans compte Mobile Money');
+reset role;
+select tst.ok((select count(*) from public.payouts) = 1, 'un seul versement créé');
+set role authenticated;
+
+-- Le pro renseigne son compte, le versement part
+select tst.login('00000000-0000-0000-0000-0000000000a2');
+update public.mechanic_profiles set payout_method = 'wave', payout_phone = '+225 07 00 00 00 01' where id = auth.uid();
+select tst.ok(public.can_retry_payout((select (v::jsonb -> 'payout' ->> 'id')::uuid from tst.ctx where k='pay7')),
+              'le pro peut relancer son propre versement');
+select tst.ok((select count(*) from public.payouts) = 1, 'le pro voit son versement');
+select tst.login('00000000-0000-0000-0000-0000000000a1');
+select tst.ok((select count(*) from public.payouts) = 0, 'un autre pro ne voit pas ce versement');
+select tst.ok(not public.can_retry_payout((select (v::jsonb -> 'payout' ->> 'id')::uuid from tst.ctx where k='pay7')),
+              'un autre pro ne peut pas le relancer');
+select tst.login('00000000-0000-0000-0000-0000000000c1');
+select tst.ok((select count(*) from public.payouts) = 0, 'le client ne voit pas les versements');
+reset role;
+set role service_role;
+select tst.ok((public.claim_payout((select (v::jsonb -> 'payout' ->> 'id')::uuid from tst.ctx where k='pay7'))).phone = '+225 07 00 00 00 01',
+              'versement réservé avec le compte renseigné');
+select tst.ok((public.claim_payout((select (v::jsonb -> 'payout' ->> 'id')::uuid from tst.ctx where k='pay7'))).id is null,
+              'aucun double envoi');
+-- L'opérateur refuse le numéro : le pro le corrige, la relance part sur le nouveau
+select public.record_payout_result((select (v::jsonb -> 'payout' ->> 'id')::uuid from tst.ctx where k='pay7'), 'failed', null, 'REJ', 'Numéro inconnu');
+reset role;
+set role authenticated;
+select tst.login('00000000-0000-0000-0000-0000000000a2');
+update public.mechanic_profiles set payout_phone = '+225 07 00 00 00 09' where id = auth.uid();
+reset role;
+set role service_role;
+select tst.ok((public.claim_payout((select (v::jsonb -> 'payout' ->> 'id')::uuid from tst.ctx where k='pay7'))).phone = '+225 07 00 00 00 09',
+              'la relance utilise le numéro corrigé');
+select public.record_payout_result((select (v::jsonb -> 'payout' ->> 'id')::uuid from tst.ctx where k='pay7'), 'sent', 'TR-1', 'VAL', null);
+reset role;
+select tst.ok((select status = 'sent' and sent_at is not null from public.payouts), 'versement envoyé');
+select tst.ok((select count(*) from public.notifications where type = 'payout_sent'
+                 and user_id = '00000000-0000-0000-0000-0000000000a2') = 1, 'le pro est prévenu du versement');
+
+-- Doubles paiements : signalés à l'équipe (une seule fois), jamais un second versement
+set role service_role;
+select tst.ok((public.confirm_online_payment((select v from tst.ctx where k='ref7b'), 20000, 'wave', 'TX-7B')) ->> 'status' = 'duplicate',
+              'l''autre tentative payée aussi : double paiement détecté');
+select tst.ok((public.confirm_online_payment((select v from tst.ctx where k='ref7b'), 20000, 'wave', 'TX-7B')) ->> 'status' = 'duplicate',
+              'notification reçue deux fois : même réponse');
+select tst.ok((public.confirm_online_payment((select v from tst.ctx where k='ref6'), 10000, 'orange_money', 'TX-6')) ->> 'status' = 'duplicate',
+              'payé en espèces puis en ligne : double paiement détecté');
+select tst.ok((public.confirm_online_payment('SOSPAYINCONNU0000', 5000, 'wave', 'TX-X')) ->> 'status' = 'not_found',
+              'référence inconnue : signalée sans erreur');
+reset role;
+select tst.ok((select count(*) > 0 and count(*) = 2 * count(distinct user_id) from public.notifications where type = 'payment_duplicate'),
+              'l''équipe est alertée une fois par double paiement');
+select tst.ok((select count(*) > 0 from public.notifications where type = 'payment_unknown'), 'paiement sans correspondance signalé');
+select tst.ok((select count(*) from public.payouts) = 1, 'aucun versement en double');
+select tst.ok((select channel = 'direct' and status = 'confirmed' from public.payments where request_id = (select v::uuid from tst.ctx where k='req6')),
+              'le paiement en espèces reste tel quel');
+set role authenticated;
+set role authenticated;
+select tst.login('00000000-0000-0000-0000-0000000000d2');
+select tst.fails(format($$ select public.admin_settle_commission(%L, 'Réglé') $$,
+                        (select id from public.payments where request_id = (select v::uuid from tst.ctx where k='req6'))),
+                 'FORBIDDEN_ADMIN', 'le support ne peut pas solder une commission');
+select tst.login('00000000-0000-0000-0000-0000000000d1');
+select tst.fails(format($$ select public.admin_settle_commission(%L, 'Réglé par Wave') $$,
+                        (select id from public.payments where request_id = (select v::uuid from tst.ctx where k='req6'))),
+                 'NOTHING_TO_SETTLE', 'commission déjà soldée');
+reset role;
+update public.platform_settings set value = 'null' where key = 'online_payment_provider';
+set role authenticated;
 
 -- ---------------------------------------------------------------------------
 -- Suspension

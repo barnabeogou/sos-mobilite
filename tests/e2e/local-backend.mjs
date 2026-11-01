@@ -8,15 +8,19 @@
  * `authenticated` ou `anon` et les claims JWT, exactement comme PostgREST :
  * les politiques RLS et les fonctions SQL sont donc réellement testées.
  *
+ * Les appels /functions/v1/* sont relayés vers FUNCTIONS_TARGET (Edge Functions lancées
+ * localement avec Deno), comme le fait la passerelle Supabase.
+ *
  * Non couverts : Storage (photos/documents) et Realtime.
  *
- * Usage : DATABASE_URL=postgres://... node tests/e2e/local-backend.mjs  (port 54321)
+ * Usage : DATABASE_URL=postgres://... [FUNCTIONS_TARGET=http://127.0.0.1:8000] node tests/e2e/local-backend.mjs  (port 54321)
  */
 import http from 'node:http';
 import crypto from 'node:crypto';
 import pg from 'pg';
 
 const PORT = Number(process.env.PORT ?? 54321);
+const FUNCTIONS_TARGET = (process.env.FUNCTIONS_TARGET ?? '').replace(/\/$/, '');
 const SECRET = 'local-e2e-secret-not-for-production';
 const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
 
@@ -40,6 +44,7 @@ function verifyJwt(token) {
   return payload;
 }
 export const ANON_KEY = signJwt({ role: 'anon', iss: 'local-e2e', exp: 4102444800 });
+export const SERVICE_KEY = signJwt({ role: 'service_role', iss: 'local-e2e', exp: 4102444800 });
 
 // ---------------------------------------------------------------------------
 // Auth
@@ -199,7 +204,7 @@ function orderLimit(url) {
 async function withRole(req, fn) {
   const token = (req.headers.authorization ?? '').replace(/^Bearer /i, '');
   const claims = verifyJwt(token);
-  const role = claims?.role === 'authenticated' ? 'authenticated' : 'anon';
+  const role = claims?.role === 'authenticated' || claims?.role === 'service_role' ? claims.role : 'anon';
   const client = await pool.connect();
   try {
     await client.query('begin');
@@ -306,12 +311,38 @@ function send(res, status, data) {
   res.end(data === null ? '' : JSON.stringify(data));
 }
 
+// Relais vers les Edge Functions locales (corps brut, redirections non suivies).
+async function proxyFunction(req, res, url, raw) {
+  if (!FUNCTIONS_TARGET) return send(res, 503, { code: 'FUNCTIONS_UNAVAILABLE', message: 'Edge Functions non lancées (FUNCTIONS_TARGET)' });
+  const headers = {};
+  for (const [k, v] of Object.entries(req.headers)) if (!['host', 'connection', 'content-length'].includes(k)) headers[k] = v;
+  const r = await fetch(`${FUNCTIONS_TARGET}${url.pathname.replace(/^\/functions\/v1/, '')}${url.search}`, {
+    method: req.method,
+    headers,
+    body: ['GET', 'HEAD'].includes(req.method) ? undefined : raw,
+    redirect: 'manual',
+  });
+  const out = {};
+  r.headers.forEach((v, k) => {
+    if (!['content-encoding', 'content-length', 'transfer-encoding', 'connection'].includes(k)) out[k] = v;
+  });
+  res.writeHead(r.status, out);
+  res.end(Buffer.from(await r.arrayBuffer()));
+}
+
 http
   .createServer(async (req, res) => {
     if (req.method === 'OPTIONS') return send(res, 204, null);
     const url = new URL(req.url, `http://localhost:${PORT}`);
     let raw = '';
     for await (const chunk of req) raw += chunk;
+    if (url.pathname.startsWith('/functions/v1/')) {
+      try {
+        return await proxyFunction(req, res, url, raw);
+      } catch (e) {
+        return send(res, 502, { code: 'FUNCTIONS_UNREACHABLE', message: e.message });
+      }
+    }
     const body = raw ? JSON.parse(raw) : undefined;
     try {
       if (url.pathname.startsWith('/auth/v1/')) return await handleAuth(req, res, url.pathname, body ?? {}, url);
@@ -327,4 +358,5 @@ http
   .listen(PORT, () => {
     console.log(`Backend de test local sur http://localhost:${PORT}`);
     console.log(`ANON_KEY=${ANON_KEY}`);
+    console.log(`SERVICE_KEY=${SERVICE_KEY}`);
   });

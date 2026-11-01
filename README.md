@@ -11,9 +11,9 @@ Trois espaces dans une seule application web progressive (PWA installable sur An
 
 | Espace | Rôle | Fonctions principales |
 |---|---|---|
-| **Client** `/client` | automobilistes, motards, VTC, livreurs | SOS en 3 étapes, suivi temps réel, devis à valider, code d’arrivée, confirmation du paiement, reçu, avis, historique, **Mon véhicule** (carnet d’entretien + rappels d’assurance), mécanos proches, support |
-| **Professionnel** `/pro` | mécaniciens, garages, dépanneurs | profil pro, spécialités, zone et rayon, documents justificatifs, disponibilité, propositions de missions, devis et suppléments, code d’arrivée, déclaration du paiement, gains, avis |
-| **Administration** `/admin` | équipe SOS MOBILITÉ (3 niveaux) | statistiques, validation des pros, attribution manuelle, intervention sur les statuts, clients, paiements, réclamations, évaluations, tarifs et paramètres, équipe |
+| **Client** `/client` | automobilistes, motards, VTC, livreurs | SOS en 3 étapes, suivi temps réel, devis à valider ou à négocier, code d’arrivée, paiement dans l’application (ou confirmation d’un paiement direct), reçu, avis, historique, **Mon véhicule** (carnet d’entretien + rappels d’assurance), mécanos proches, support |
+| **Professionnel** `/pro` | mécaniciens, garages, dépanneurs | profil pro, spécialités, zone et rayon, documents justificatifs, disponibilité, propositions de missions, devis et suppléments, code d’arrivée, versement automatique de sa part (ou déclaration d’un paiement direct), gains et versements, avis |
+| **Administration** `/admin` | équipe SOS MOBILITÉ (3 niveaux) | statistiques, validation des pros, attribution manuelle, intervention sur les statuts, clients, paiements et versements, réclamations, évaluations, tarifs et paramètres, équipe |
 
 Les pages publiques (`/`, `/services`, `/connexion`, `/inscription`, `/inscription/professionnel`) présentent le service.
 
@@ -81,7 +81,8 @@ Configurer la réécriture de toutes les routes vers `index.html` (application m
 | Élément | Valeur |
 |---|---|
 | Site | https://sos-mobilite.netlify.app (projet Netlify `sos-mobilite`) |
-| Base | Supabase `amopbblmejoabauqkiul` (organisation « SOS », région eu-west-3 Paris), 6 migrations appliquées |
+| Base | Supabase `amopbblmejoabauqkiul` (organisation « SOS », région eu-west-3 Paris), toutes les migrations de `supabase/migrations/` appliquées |
+| Edge Function | `payments` (paiement en ligne et versements), déployée sans vérification JWT automatique : chaque route contrôle l’appelant |
 | Configuration | `netlify.toml` (variables publiques, réécriture SPA, en-têtes de sécurité, cache) et `public/_redirects` |
 | Code source | https://github.com/barnabeogou/sos-mobilite (branche `main`) |
 | Mise en ligne | automatique : chaque envoi sur `main` est construit (`npm run build`) et publié par Netlify |
@@ -102,20 +103,40 @@ Réglages à faire une fois dans les tableaux de bord :
 - **Nom de domaine personnalisé** : prévoir HTTPS (obligatoire pour la géolocalisation et l’installation PWA).
 - **Android** : depuis Chrome, menu → « Installer l’application ». Une application native (Play Store) pourra ensuite être produite à partir du même code (Capacitor) — étape 5 de la feuille de route.
 
+### Activer le paiement dans l’application (CinetPay)
+
+Tout est en place (tables, règles, Edge Function `payments`, écrans). Il reste à brancher le compte marchand :
+
+1. Ouvrir un compte marchand sur cinetpay.com (pièces de l’entreprise), puis dans le tableau de bord récupérer
+   l’**APIKEY**, le **site_id**, la **clé secrète** (menu Intégrations) et le **mot de passe de l’API de transfert**.
+2. **Supabase → Edge Functions → Secrets** : ajouter `CINETPAY_API_KEY`, `CINETPAY_SITE_ID`, `CINETPAY_SECRET_KEY`
+   et `CINETPAY_TRANSFER_PASSWORD`. Ces clés restent côté serveur : ne jamais les mettre dans le site ni dans `netlify.toml`.
+3. **Administration → Tarifs & paramètres** : passer `online_payment_provider` à `"cinetpay"`.
+   La carte « Paiement dans l’application » de la page Paiements doit alors afficher 4 coches vertes.
+4. Faire un paiement réel de faible montant (par ex. 100 FCFA) de bout en bout, puis vérifier le versement.
+
+Fonctionnement : le client paie sur la page sécurisée CinetPay ; la notification est signée (x-token) et le statut est
+**toujours recontrôlé** auprès de CinetPay avant validation. La part du pro (montant − commission, arrondie au multiple
+de 5 FCFA inférieur) lui est envoyée sur son numéro Mobile Money, déduction faite des commissions dues sur ses paiements
+en espèces. Sans mot de passe de transfert, ou si CinetPay exige la validation des transferts par e-mail (sauf IP
+déclarée), les versements restent « À verser » et se font depuis le compte CinetPay, puis sont marqués « Versé » dans
+l’administration. Paiement en double, montant différent ou référence inconnue : l’équipe opérations est alertée.
+
 ## 4. Tests
 
 ```bash
 npm test          # tests unitaires et d'interface (Vitest) — règles métier, rappels, validations, composants
-npm run test:db   # migrations + 98 contrôles SQL de bout en bout sur un PostgreSQL local jetable
+npm run test:db   # migrations + 135 contrôles SQL de bout en bout sur un PostgreSQL local jetable
 npm run build     # vérification TypeScript + build de production
 ```
 
 `npm run test:db` exécute le workflow complet (demande → correspondance → acceptation → devis → déplacement → code d’arrivée →
-supplément → fin → paiement → reçu → avis) et vérifie les règles de sécurité (isolation des clients, mécanicien non validé
+supplément → négociation → fin → paiement direct ou en ligne → versement → reçu → avis) et vérifie les règles de sécurité (isolation des clients, mécanicien non validé
 jamais sollicité, aucune écriture directe, niveaux administrateur, stockage…). Prérequis : binaires PostgreSQL 15+.
 
 Un parcours navigateur complet est également fourni (`tests/e2e/`, voir `tests/e2e/README.md`) : il pilote l’application réelle
-avec Playwright contre les vraies migrations et produit les captures de `docs/captures/`.
+avec Playwright contre les vraies migrations et produit les captures de `docs/captures/`. Avec `ONLINE=1`, il passe par l’Edge
+Function `payments` (lancée avec Deno) et un faux CinetPay : paiement au guichet, notification signée, retour, versement au pro.
 
 ## 5. Organisation du code
 
@@ -148,7 +169,7 @@ pour régénérer les icônes de l’application installée.
 
 | Élément | État | Branchement prévu |
 |---|---|---|
-| Paiement en ligne (Orange Money, MTN MoMo, Wave, carte) | non connecté — paiement direct au pro, déclaré puis confirmé dans l’app | `src/services/payments/providers.ts` + Edge Function + webhook du prestataire |
+| Paiement en ligne (Orange Money, MTN MoMo, Moov, Wave, carte) | **prêt, inactif** tant que les clés CinetPay ne sont pas saisies — d’ici là, paiement direct déclaré puis confirmé | voir « Activer le paiement dans l’application » ci-dessus |
 | Notifications push | non connectées — notifications in-app en temps réel | `src/services/notifications/push.ts` |
 | Carte interactive Google Maps | liens « Itinéraire » vers Maps (sans clé) | `src/services/maps/maps.ts` |
 | SMS / OTP | désactivé par défaut | fournisseur SMS Supabase + `VITE_ENABLE_PHONE_AUTH=true` |

@@ -4,13 +4,13 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import type { z } from 'zod';
-import { ArrowLeft, CheckCircle2, FileText, KeyRound, MapPin, MessageCircle, Navigation, Phone, TriangleAlert, Undo2 } from 'lucide-react';
+import { ArrowLeft, Banknote, CheckCircle2, FileText, KeyRound, MapPin, MessageCircle, Navigation, Phone, Smartphone, TriangleAlert, Undo2 } from 'lucide-react';
 import { useProfile } from '@/hooks/useAuth';
 import { useCategories, useSettings } from '@/hooks/queries';
 import { useRealtimeInvalidate } from '@/hooks/useRealtime';
 import { AnchorButton, Button, ButtonLink } from '@/components/ui/Button';
 import { Input, Select, Textarea } from '@/components/ui/Field';
-import { Avatar, Card, ErrorState, LoadingBlock, Notice, Rating } from '@/components/ui/Display';
+import { Avatar, Badge, Card, ErrorState, LoadingBlock, Notice, Rating } from '@/components/ui/Display';
 import { Modal, useToast } from '@/components/ui/Overlay';
 import { NamedIcon } from '@/components/ui/Icon';
 import { OfferHistory, QuoteBreakdown, StatusBadge, StatusTimeline } from '@/components/requests/RequestParts';
@@ -27,10 +27,11 @@ import {
 } from '@/services/mechanic.service';
 import { useMechanicProfile } from './useMechanic';
 import { numericSetting } from '@/services/catalog.service';
+import { getPayoutForPayment, onlinePaymentEnabled } from '@/services/payments/providers';
 import { directionsUrl } from '@/services/maps/maps';
 import { quoteSchema } from '@/domain/validation';
 import { MECHANIC_CAN_QUOTE, MECHANIC_CAN_WITHDRAW, REQUEST_STATUS } from '@/domain/status';
-import { PAYMENT_METHODS, paymentMethodLabel, symptomLabel, vehicleTypeLabel } from '@/domain/catalog';
+import { PAYMENT_METHODS, PAYOUT_STATUS, paymentMethodLabel, symptomLabel, vehicleTypeLabel } from '@/domain/catalog';
 import { DEFAULT_COMMISSION, commissionSplit, formatFCFA, formatRate, quoteTotal } from '@/domain/pricing';
 import { formatDateTime, telHref, whatsappHref } from '@/lib/format';
 import { errorMessage } from '@/lib/errors';
@@ -52,6 +53,13 @@ export default function MissionDetailPage() {
   useRealtimeInvalidate('quotes', `request_id=eq.${id}`, [key]);
   useRealtimeInvalidate('price_offers', `request_id=eq.${id}`, [key]);
   useRealtimeInvalidate('payments', `request_id=eq.${id}`, [key]);
+  const paymentId = detail.data?.payment?.channel === 'online' ? detail.data.payment.id : null;
+  const payout = useQuery({
+    queryKey: ['payout', paymentId],
+    queryFn: () => getPayoutForPayment(paymentId!),
+    enabled: Boolean(paymentId),
+  });
+  useRealtimeInvalidate('payouts', `mechanic_id=eq.${profile.id}`, [['payout', paymentId], ['my-payouts', profile.id]]);
   const photos = useQuery({
     queryKey: ['request-photos', id],
     queryFn: () => requestPhotoUrls(detail.data!.request.photos),
@@ -96,6 +104,8 @@ export default function MissionDetailPage() {
   const plan = mech.data?.plan ?? 'starter';
   const rate = numericSetting(settings, plan === 'pro' ? 'commission_rate_pro' : 'commission_rate_starter', DEFAULT_COMMISSION[plan]);
   const s = request.status;
+  const onlinePayment = onlinePaymentEnabled(settings);
+  const payoutAccount = mech.data?.payout_method && mech.data?.payout_phone ? `${paymentMethodLabel(mech.data.payout_method)} · ${mech.data.payout_phone}` : null;
   const showContact = !['cancelled', 'closed'].includes(s);
 
   return (
@@ -121,7 +131,11 @@ export default function MissionDetailPage() {
         </div>
       </div>
 
-      <Notice tone={REQUEST_STATUS[s].tone}>{REQUEST_STATUS[s].mechanic}</Notice>
+      <Notice tone={REQUEST_STATUS[s].tone}>
+        {s === 'completed' && onlinePayment && payment?.status !== 'declared'
+          ? 'Mission terminée : le client règle dans l’application, votre part vous est versée automatiquement.'
+          : REQUEST_STATUS[s].mechanic}
+      </Notice>
 
       {/* Client & lieu */}
       {client && (
@@ -314,7 +328,7 @@ export default function MissionDetailPage() {
               icon={<CheckCircle2 className="h-5 w-5" />}
               disabled={Boolean(pendingQuote)}
               loading={busy === 'complete'}
-              onClick={() => run('complete', () => completeMission(request.id, null), 'Mission terminée. Déclarez le paiement reçu.')}
+              onClick={() => run('complete', () => completeMission(request.id, null), onlinePayment ? 'Mission terminée. Le client peut maintenant payer dans l’application.' : 'Mission terminée. Déclarez le paiement reçu.')}
             >
               Terminer la mission
             </Button>
@@ -325,29 +339,74 @@ export default function MissionDetailPage() {
       {s === 'completed' && acceptedQuote && (
         <Card className="border-emerald-500/40">
           <p className="font-bold">Paiement</p>
-          {payment?.status === 'declared' ? (
-            <p className="mt-1 text-sm text-silver-300">
-              Vous avez déclaré {formatFCFA(payment.amount)} reçus ({paymentMethodLabel(payment.method)}). En attente de la confirmation du client.
-            </p>
-          ) : (
-            <p className="mt-1 text-sm text-silver-400">Montant à encaisser : {formatFCFA(acceptedQuote.total_amount)} (devis validé). Le client confirmera ensuite.</p>
-          )}
-          <div className="mt-4 flex flex-col gap-2 sm:flex-row">
-            <Select value={method} onChange={(e) => setMethod(e.target.value as PaymentMethod)} aria-label="Moyen de paiement" wrapClassName="flex-1">
-              {PAYMENT_METHODS.map((p) => (
-                <option key={p.value} value={p.value}>
-                  {p.label}
-                </option>
-              ))}
-            </Select>
-            <Button loading={busy === 'pay'} onClick={() => run('pay', () => declarePayment(request.id, method), 'Paiement déclaré.')}>
-              {payment?.status === 'declared' ? 'Corriger le moyen' : 'J’ai reçu le paiement'}
-            </Button>
-          </div>
-          <p className="mt-3 text-xs text-silver-500">
-            Commission plateforme {formatRate(rate)} : {formatFCFA(commissionSplit(acceptedQuote.total_amount, rate).commission)} · Votre part :{' '}
-            {formatFCFA(commissionSplit(acceptedQuote.total_amount, rate).net)}. Paiement en ligne via l’application : bientôt disponible.
-          </p>
+          {(() => {
+            const split = commissionSplit(acceptedQuote.total_amount, rate);
+            const offerCash = onlinePayment && payment?.status !== 'declared';
+            return (
+              <>
+                {payment?.status === 'declared' ? (
+                  <p className="mt-1 text-sm text-silver-300">
+                    Vous avez déclaré {formatFCFA(payment.amount)} reçus ({paymentMethodLabel(payment.method)}). En attente de la confirmation du client.
+                  </p>
+                ) : onlinePayment ? (
+                  <>
+                    <div className="mt-2 flex items-start gap-3 rounded-xl bg-white/[0.03] p-3">
+                      <Smartphone className="mt-0.5 h-5 w-5 shrink-0 text-electric-300" />
+                      <p className="text-sm text-silver-300">
+                        Le client paie <strong className="text-white">{formatFCFA(acceptedQuote.total_amount)}</strong> dans l’application. Votre part,{' '}
+                        <strong className="text-white">{formatFCFA(split.net)}</strong>, vous est versée automatiquement{payoutAccount ? ` sur ${payoutAccount}.` : '.'}
+                      </p>
+                    </div>
+                    {payment?.status === 'pending' && (
+                      <Notice tone="info" className="mt-3">
+                        Paiement du client en cours…
+                      </Notice>
+                    )}
+                    {payment?.status === 'failed' && (
+                      <Notice tone="warning" className="mt-3">
+                        Le paiement du client n’a pas abouti. Il peut réessayer.
+                      </Notice>
+                    )}
+                    {!payoutAccount && (
+                      <Notice tone="warning" className="mt-3" title="Compte de versement manquant">
+                        Renseignez votre numéro Mobile Money dans{' '}
+                        <Link to="/pro/profil" className="underline">
+                          votre profil
+                        </Link>{' '}
+                        pour recevoir vos versements.
+                      </Notice>
+                    )}
+                  </>
+                ) : (
+                  <p className="mt-1 text-sm text-silver-400">Montant à encaisser : {formatFCFA(acceptedQuote.total_amount)} (devis validé). Le client confirmera ensuite.</p>
+                )}
+
+                {offerCash && (
+                  <p className="mt-4 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-silver-500">
+                    <Banknote className="h-4 w-4" /> Payé en espèces ou directement ?
+                  </p>
+                )}
+                <div className={`${offerCash ? 'mt-2' : 'mt-4'} flex flex-col gap-2 sm:flex-row`}>
+                  <Select value={method} onChange={(e) => setMethod(e.target.value as PaymentMethod)} aria-label="Moyen de paiement" wrapClassName="flex-1">
+                    {PAYMENT_METHODS.map((p) => (
+                      <option key={p.value} value={p.value}>
+                        {p.label}
+                      </option>
+                    ))}
+                  </Select>
+                  <Button variant={offerCash ? 'secondary' : 'primary'} loading={busy === 'pay'} onClick={() => run('pay', () => declarePayment(request.id, method), 'Paiement déclaré.')}>
+                    {payment?.status === 'declared' ? 'Corriger le moyen' : 'J’ai reçu le paiement'}
+                  </Button>
+                </div>
+                <p className="mt-3 text-xs text-silver-500">
+                  Commission plateforme {formatRate(rate)} : {formatFCFA(split.commission)} · Votre part : {formatFCFA(split.net)}.
+                  {onlinePayment
+                    ? ' Pour un paiement direct, la commission reste due : elle est déduite de vos prochains versements.'
+                    : ' Paiement dans l’application : bientôt disponible.'}
+                </p>
+              </>
+            );
+          })()}
         </Card>
       )}
 
@@ -359,11 +418,35 @@ export default function MissionDetailPage() {
               <p className="text-sm text-silver-400">
                 {formatFCFA(payment.amount)} · net {formatFCFA(payment.mechanic_net)} · {payment.receipt_number}
               </p>
+              <p className="text-xs text-silver-500">
+                {payment.channel === 'online' ? 'Payé dans l’application' : `Payé directement (${paymentMethodLabel(payment.method)})`}
+              </p>
             </div>
             <ButtonLink to={`/pro/recus/${request.id}`} variant="secondary" size="sm" icon={<FileText className="h-4 w-4" />}>
               Reçu
             </ButtonLink>
           </div>
+          {payment.channel === 'online' && payout.data && (
+            <div className="mt-4 flex items-center justify-between gap-3 border-t border-white/5 pt-4 text-sm">
+              <div>
+                <p className="font-semibold">Votre versement : {formatFCFA(payout.data.amount)}</p>
+                {payout.data.deducted_commissions > 0 && (
+                  <p className="text-xs text-silver-500">Commissions d’espèces déduites : {formatFCFA(payout.data.deducted_commissions)}</p>
+                )}
+                {payout.data.failure_reason && payout.data.status !== 'sent' && (
+                  <p className="text-xs text-amber-300">
+                    {payout.data.failure_reason === 'PAYOUT_ACCOUNT_MISSING' ? 'Renseignez votre compte de versement dans votre profil.' : payout.data.failure_reason}
+                  </p>
+                )}
+              </div>
+              <Badge tone={PAYOUT_STATUS[payout.data.status].tone} dot>
+                {PAYOUT_STATUS[payout.data.status].label}
+              </Badge>
+            </div>
+          )}
+          {payment.channel === 'direct' && !payment.commission_settled_at && payment.commission_amount > 0 && (
+            <p className="mt-3 text-xs text-amber-300">Commission due : {formatFCFA(payment.commission_amount)} — déduite de vos prochains versements.</p>
+          )}
           {review && (
             <div className="mt-4 border-t border-white/5 pt-4">
               <Rating value={review.rating} count={1} />

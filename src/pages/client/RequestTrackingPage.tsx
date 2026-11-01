@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   ArrowLeft,
@@ -13,6 +13,7 @@ import {
   Phone,
   Radar,
   Share2,
+  Smartphone,
   TriangleAlert,
   XCircle,
 } from 'lucide-react';
@@ -40,6 +41,7 @@ import {
   submitReview,
 } from '@/services/requests.service';
 import { supportContacts, numericSetting } from '@/services/catalog.service';
+import { onlinePaymentEnabled, startOnlinePayment, verifyOnlinePayment } from '@/services/payments/providers';
 import { CANCELLATION_RULE, mechanicKindLabel, paymentMethodLabel, symptomLabel, vehicleTypeLabel } from '@/domain/catalog';
 import { CLIENT_CAN_CANCEL, CLIENT_CAN_REPORT, REQUEST_STATUS } from '@/domain/status';
 import { DEFAULT_NEGOTIATION, formatFCFA } from '@/domain/pricing';
@@ -59,13 +61,36 @@ export default function RequestTrackingPage() {
   const maxOffers = numericSetting(settings, 'max_price_offers', DEFAULT_NEGOTIATION.maxOffers);
   const minOfferRatio = numericSetting(settings, 'min_offer_ratio', DEFAULT_NEGOTIATION.minRatio);
 
+  const [searchParams] = useSearchParams();
+  const returningFromPayment = searchParams.get('paiement') === 'retour';
+  const onlinePayment = onlinePaymentEnabled(settings);
+
   const key = ['request', id];
-  const detail = useQuery({ queryKey: key, queryFn: () => getRequestDetail(id), refetchInterval: 30_000 });
+  const detail = useQuery({
+    queryKey: key,
+    queryFn: () => getRequestDetail(id),
+    // Au retour du guichet de paiement, on suit la confirmation du serveur de près.
+    refetchInterval: (q) =>
+      returningFromPayment && q.state.data?.request.status === 'completed' && q.state.dataUpdateCount < 60 ? 3_000 : 30_000,
+  });
   useRealtimeInvalidate('service_requests', `id=eq.${id}`, [key, ['my-requests', profile.id]]);
   useRealtimeInvalidate('quotes', `request_id=eq.${id}`, [key]);
   useRealtimeInvalidate('price_offers', `request_id=eq.${id}`, [key]);
   useRealtimeInvalidate('assignments', `request_id=eq.${id}`, [key]);
   useRealtimeInvalidate('payments', `request_id=eq.${id}`, [key]);
+
+  // Retour du guichet : si la notification de l'opérateur tarde, on redemande le statut (vérifié côté serveur).
+  const pendingPaymentId = returningFromPayment && detail.data?.payment?.status === 'pending' ? detail.data.payment.id : null;
+  useEffect(() => {
+    if (!pendingPaymentId) return;
+    const check = () =>
+      verifyOnlinePayment(pendingPaymentId)
+        .then(() => qc.invalidateQueries({ queryKey: key }))
+        .catch(() => undefined);
+    const timers = [8_000, 30_000, 90_000].map((ms) => window.setTimeout(check, ms));
+    return () => timers.forEach((t) => window.clearTimeout(t));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingPaymentId]);
 
   const status = detail.data?.request.status;
   const codeVisible = status === 'accepted' || status === 'quoted' || status === 'quote_accepted' || status === 'en_route';
@@ -151,7 +176,11 @@ export default function RequestTrackingPage() {
         </div>
       </div>
 
-      <Notice tone={meta.tone}>{meta.client}</Notice>
+      <Notice tone={meta.tone}>
+        {request.status === 'completed' && onlinePayment && payment?.status !== 'declared'
+          ? 'Intervention terminée. Vérifiez la prestation, puis réglez-la dans l’application.'
+          : meta.client}
+      </Notice>
 
       {/* Recherche */}
       {request.status === 'searching' && (
@@ -325,12 +354,12 @@ export default function RequestTrackingPage() {
         </Card>
       )}
 
-      {/* Confirmation fin + paiement */}
+      {/* Paiement dans l'application (ou confirmation d'un paiement en espèces) */}
       {request.status === 'completed' && (
         <Card className="border-emerald-500/40">
-          <p className="font-bold">Confirmer la fin de l’intervention</p>
           {payment?.status === 'declared' ? (
             <>
+              <p className="font-bold">Confirmer la fin de l’intervention</p>
               <p className="mt-2 text-sm text-silver-300">
                 Le professionnel déclare avoir reçu <strong className="text-white">{formatFCFA(payment.amount)}</strong> ({paymentMethodLabel(payment.method)}).
                 Confirmez si la réparation est faite et le paiement effectué.
@@ -345,10 +374,52 @@ export default function RequestTrackingPage() {
               </div>
             </>
           ) : (
-            <p className="mt-2 text-sm text-silver-400">
-              Réglez le montant validé ({formatFCFA(acceptedQuote?.total_amount)}) directement au professionnel. Il déclarera le paiement et vous
-              pourrez le confirmer ici.
-            </p>
+            <>
+              <p className="font-bold">Payer l’intervention</p>
+              <p className="mt-1 text-sm text-silver-300">
+                Montant validé : <strong className="text-white">{formatFCFA(acceptedQuote?.total_amount)}</strong>
+              </p>
+              {payment?.status === 'pending' && returningFromPayment && (
+                <Notice tone="info" className="mt-3" title="Paiement en cours de vérification">
+                  Nous attendons la confirmation de l’opérateur. Cette page se met à jour toute seule.
+                </Notice>
+              )}
+              {payment?.status === 'failed' && (
+                <Notice tone="warning" className="mt-3" title="Le paiement n’a pas abouti">
+                  Aucun montant n’a été validé. Vous pouvez réessayer.
+                </Notice>
+              )}
+              {onlinePayment ? (
+                <>
+                  <Button
+                    className="mt-4 w-full"
+                    icon={<Smartphone className="h-4 w-4" />}
+                    loading={busy === 'pay'}
+                    onClick={() =>
+                      run('pay', async () => {
+                        try {
+                          window.location.assign(await startOnlinePayment(request.id));
+                        } catch (e) {
+                          toast.error(errorMessage(e));
+                        }
+                      })
+                    }
+                  >
+                    Payer {formatFCFA(acceptedQuote?.total_amount)}
+                  </Button>
+                  <p className="mt-2 text-xs text-silver-400">
+                    Orange Money, MTN MoMo, Moov Money, Wave ou carte bancaire, sur la page sécurisée de notre prestataire de paiement. Votre reçu est
+                    émis automatiquement.
+                  </p>
+                  <p className="mt-3 text-xs text-silver-500">Vous avez réglé en espèces ? Le professionnel le déclare, puis vous le confirmez ici.</p>
+                </>
+              ) : (
+                <Notice tone="info" className="mt-3">
+                  Le paiement dans l’application arrive très bientôt. En attendant, réglez le professionnel directement : il déclarera le paiement et
+                  vous le confirmerez ici.
+                </Notice>
+              )}
+            </>
           )}
         </Card>
       )}

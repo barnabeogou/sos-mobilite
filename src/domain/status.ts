@@ -139,7 +139,9 @@ export const ASSIGNMENT_STATUS: Record<AssignmentStatus, { label: string; tone: 
 };
 
 export const PAYMENT_STATUS: Record<PaymentStatus, { label: string; tone: Tone }> = {
+  pending: { label: 'Paiement en ligne en cours', tone: 'info' },
   declared: { label: 'Déclaré — à confirmer', tone: 'warning' },
+  failed: { label: 'Paiement en ligne non abouti', tone: 'danger' },
   confirmed: { label: 'Confirmé', tone: 'success' },
   disputed: { label: 'Contesté', tone: 'danger' },
   refunded: { label: 'Remboursé', tone: 'neutral' },
