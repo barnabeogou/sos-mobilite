@@ -1,11 +1,26 @@
-import type { ReactNode } from 'react';
-import { Link, NavLink, Outlet, useNavigate } from 'react-router-dom';
+import { useEffect, type ReactNode } from 'react';
+import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import clsx from 'clsx';
 import { LogOut, type LucideIcon } from 'lucide-react';
 import { BrandLogo } from '@/components/brand/BrandLogo';
 import { NotificationBell } from './NotificationBell';
 import { useAuth } from '@/hooks/useAuth';
 import { Avatar } from '@/components/ui/Display';
+import { useScrolled } from '@/components/motion/motion';
+
+/** Onglet actif : la correspondance la plus précise (« /client » ne s'allume pas sur « /client/profil »). */
+function activeIndex(nav: NavItem[], pathname: string): number {
+  let best = -1;
+  let len = -1;
+  nav.forEach((item, i) => {
+    const hit = item.end ? pathname === item.to : pathname === item.to || pathname.startsWith(`${item.to}/`);
+    if (hit && item.to.length > len) {
+      best = i;
+      len = item.to.length;
+    }
+  });
+  return best;
+}
 
 export interface NavItem {
   to: string;
@@ -23,6 +38,13 @@ export interface NavItem {
 export function AppShell({ nav, homePath, banner }: { nav: NavItem[]; homePath: string; banner?: ReactNode }) {
   const { profile, signOut } = useAuth();
   const navigate = useNavigate();
+  const { pathname } = useLocation();
+  const scrolled = useScrolled(24);
+  const current = activeIndex(nav, pathname);
+
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [pathname]);
 
   const logout = async () => {
     await signOut();
@@ -67,7 +89,12 @@ export function AppShell({ nav, homePath, banner }: { nav: NavItem[]; homePath: 
       </aside>
 
       <div className="flex min-h-dvh min-w-0 flex-1 flex-col">
-        <header className="no-print sticky top-0 z-30 flex items-center justify-between gap-3 border-b border-white/5 bg-night-900/85 px-4 py-3 backdrop-blur md:px-8">
+        <header
+          className={clsx(
+            'no-print sticky top-0 z-30 flex items-center justify-between gap-3 border-b px-4 py-3 transition-[background-color,border-color,backdrop-filter] duration-500 md:px-8',
+            scrolled ? 'border-white/5 bg-night-900/85 backdrop-blur' : 'border-transparent bg-transparent md:border-white/5 md:bg-night-900/85 md:backdrop-blur',
+          )}
+        >
           <Link to={homePath} className="md:hidden">
             <BrandLogo compact />
           </Link>
@@ -88,7 +115,10 @@ export function AppShell({ nav, homePath, banner }: { nav: NavItem[]; homePath: 
         {banner}
 
         <main className="mx-auto w-full max-w-5xl flex-1 px-4 pb-28 pt-5 md:px-8 md:pb-12">
-          <Outlet />
+          {/* Une clé par page : chaque changement de rubrique rejoue l'entrée en douceur. */}
+          <div key={pathname} className="app-page">
+            <Outlet />
+          </div>
         </main>
 
         {/* Barre d'onglets (mobile) */}
@@ -96,19 +126,27 @@ export function AppShell({ nav, homePath, banner }: { nav: NavItem[]; homePath: 
           className="no-print safe-bottom fixed inset-x-3 bottom-3 z-30 flex items-stretch justify-around rounded-3xl border border-white/10 bg-night-850/95 px-1 pt-1.5 shadow-2xl backdrop-blur md:hidden"
           aria-label="Navigation principale"
         >
-          {nav.map((item) => (
+          <span
+            className="tabbar-indicator"
+            aria-hidden
+            style={{
+              width: `calc((100% - 0.5rem) / ${nav.length})`,
+              transform: `translateX(${Math.max(0, current) * 100}%)`,
+              opacity: current < 0 ? 0 : 1,
+            }}
+          />
+          {nav.map((item, i) => (
             <NavLink
               key={item.to}
               to={item.to}
               end={item.end}
-              className={({ isActive }) =>
-                clsx(
-                  'flex min-w-0 flex-1 flex-col items-center gap-1 rounded-2xl px-1 py-2 text-[11px] font-semibold transition',
-                  isActive ? 'bg-electric-500/15 text-white' : 'text-silver-400',
-                )
-              }
+              aria-current={i === current ? 'page' : undefined}
+              className={clsx(
+                'tab-link relative flex min-w-0 flex-1 flex-col items-center gap-1 rounded-2xl px-1 py-2 text-[11px] font-semibold transition-colors duration-300',
+                i === current ? 'text-white' : 'text-silver-400',
+              )}
             >
-              <item.icon className={clsx('h-5 w-5', item.highlight && 'text-alert-500')} aria-hidden />
+              <item.icon className={clsx('tab-icon h-5 w-5', item.highlight && 'text-alert-500')} aria-hidden />
               <span className="truncate">{item.label}</span>
             </NavLink>
           ))}

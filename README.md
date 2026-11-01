@@ -126,7 +126,7 @@ l’administration. Paiement en double, montant différent ou référence inconn
 
 ```bash
 npm test          # tests unitaires et d'interface (Vitest) — règles métier, rappels, validations, composants
-npm run test:db   # migrations + 135 contrôles SQL de bout en bout sur un PostgreSQL local jetable
+npm run test:db   # migrations + 137 contrôles SQL de bout en bout sur un PostgreSQL local jetable
 npm run build     # vérification TypeScript + build de production
 ```
 
@@ -159,13 +159,29 @@ docs/                architecture, workflow, sécurité, feuille de route, cahie
 Documentation technique détaillée : [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md), [`docs/WORKFLOW.md`](docs/WORKFLOW.md),
 [`docs/SECURITE.md`](docs/SECURITE.md), [`docs/FEUILLE_DE_ROUTE.md`](docs/FEUILLE_DE_ROUTE.md).
 
-## 6. Logo officiel
+## 6. Couverture nationale et identité visuelle
+
+- **Toute la Côte d’Ivoire** : la ville se choisit à l’inscription et dans le profil (`src/domain/cities.ts` :
+  35 villes ; à Abidjan, la commune se choisit dans la liste officielle). La correspondance client ↔ professionnel
+  reste calculée sur les positions GPS, partout dans le pays.
+- **Une ville par rubrique** : chaque écran de l’application affiche une grande ville de nuit avec son monument
+  (Abidjan, Yamoussoukro, Bouaké, San-Pédro, Korhogo, Daloa, Man, Gagnoa, Bondoukou, Sassandra) et son nom en
+  filigrane ; l’accueil montre la ville de l’utilisateur. Les illustrations sont dessinées en code
+  (`src/components/cities/`), légères et animées (étoiles, lumières, reflets, phare…).
+- **Photos HD** : pour remplacer un dessin par une photo, déposer le fichier dans `public/cities/` (ex.
+  `public/cities/abidjan.webp`, 1600 px de large au moins, droits d’utilisation acquis) et le déclarer dans
+  `CITY_PHOTOS` (`src/components/cities/CityScene.tsx`).
+- **Intro de lancement** : la carte du pays se dessine et l’alerte gagne les grandes villes (une fois par session ;
+  version courte pour une personne connectée ou l’application installée ; jamais sur un lien direct, ni si
+  « réduire les animations » est activé ; `?sans-intro` pour la désactiver).
+
+## 7. Logo officiel
 
 Déposer le logo dans `public/brand/` (voir `public/brand/README.md`) :
 `logo-sos-mobilite.png` (affiché partout à la place du logotype temporaire) et `logo-icon.png` (icône carrée), puis `npm run icons`
 pour régénérer les icônes de l’application installée.
 
-## 7. Ce qui n’est volontairement pas simulé
+## 8. Ce qui n’est volontairement pas simulé
 
 | Élément | État | Branchement prévu |
 |---|---|---|

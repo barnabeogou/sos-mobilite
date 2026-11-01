@@ -50,7 +50,7 @@ export const SYMPTOMS: { value: string; label: string; icon: string }[] = [
 
 export const symptomLabel = (v: string) => SYMPTOMS.find((s) => s.value === v)?.label ?? v;
 
-/** Communes du district d'Abidjan (zone pilote). */
+/** Communes du district d'Abidjan (proposées quand la ville choisie est Abidjan). */
 export const ABIDJAN_COMMUNES = [
   'Abobo',
   'Adjamé',

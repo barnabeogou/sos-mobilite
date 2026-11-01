@@ -9,7 +9,9 @@ import { useAuth, useProfile } from '@/hooks/useAuth';
 import { useCategories } from '@/hooks/queries';
 import { Button } from '@/components/ui/Button';
 import { Input, Select, Textarea } from '@/components/ui/Field';
-import { Badge, Card, ErrorState, LoadingBlock, Notice, PageHeader } from '@/components/ui/Display';
+import { Badge, Card, ErrorState, LoadingBlock, Notice } from '@/components/ui/Display';
+import { CityHero } from '@/components/cities/CityHero';
+import { PAGE_CITY } from '@/domain/cities';
 import { useToast } from '@/components/ui/Overlay';
 import { NamedIcon, VehicleIcon } from '@/components/ui/Icon';
 import { AccountCard } from '@/pages/shared/ProfilePage';
@@ -130,7 +132,7 @@ export default function MechanicProfilePage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Profil professionnel" subtitle="Ces informations sont présentées aux clients et vérifiées par l’équipe." />
+      <CityHero city={PAGE_CITY.proProfile} title="Profil professionnel" subtitle="Ces informations sont présentées aux clients et vérifiées par l’équipe." />
 
       <Notice tone={vs.tone} title={vs.label}>
         {vs.help}
@@ -148,14 +150,18 @@ export default function MechanicProfilePage() {
                 </option>
               ))}
             </Select>
-            <Select label="Commune" {...register('commune')}>
-              <option value="">—</option>
-              {ABIDJAN_COMMUNES.map((c) => (
-                <option key={c} value={c}>
-                  {c}
-                </option>
-              ))}
-            </Select>
+            {profile.city === 'Abidjan' ? (
+              <Select label="Commune de l’atelier" {...register('commune')}>
+                <option value="">—</option>
+                {ABIDJAN_COMMUNES.map((c) => (
+                  <option key={c} value={c}>
+                    {c}
+                  </option>
+                ))}
+              </Select>
+            ) : (
+              <Input label="Quartier de l’atelier" optional hint={`À ${profile.city}. Ville modifiable plus bas, dans « Compte ».`} {...register('commune')} />
+            )}
             <Input label="Années d’expérience" optional inputMode="numeric" {...register('years_experience')} />
             <Input label="Adresse de l’atelier" optional {...register('address')} wrapClassName="sm:col-span-2" />
             <Input label="Horaires" optional placeholder="Lun–Sam 7h–19h, urgences 24h/24" {...register('opening_hours')} wrapClassName="sm:col-span-2" />

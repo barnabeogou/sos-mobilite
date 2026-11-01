@@ -23,6 +23,7 @@ export const clientSignUpSchema = z
     full_name: z.string().trim().min(2, 'Nom requis').max(120),
     phone: phoneSchema,
     email: z.string().trim().email('Adresse e-mail invalide'),
+    city: z.string().trim().min(2, 'Ville requise').max(80),
     commune: z.string().trim().max(80).optional().or(z.literal('')),
     password: passwordSchema,
     password_confirm: z.string(),
@@ -36,7 +37,8 @@ export const mechanicSignUpSchema = z
     business_name: z.string().trim().max(120).optional().or(z.literal('')),
     phone: phoneSchema,
     email: z.string().trim().email('Adresse e-mail invalide'),
-    commune: z.string().trim().min(2, 'Commune requise').max(80),
+    city: z.string().trim().min(2, 'Ville requise').max(80),
+    commune: z.string().trim().max(80).optional().or(z.literal('')),
     password: passwordSchema,
     password_confirm: z.string(),
     terms: z.literal(true, { errorMap: () => ({ message: 'Acceptation requise' }) }),
@@ -47,7 +49,7 @@ export const profileSchema = z.object({
   full_name: z.string().trim().min(2, 'Nom requis').max(120),
   phone: phoneSchema.or(z.literal('')),
   commune: z.string().trim().max(80).optional().or(z.literal('')),
-  city: z.string().trim().min(2).max(80),
+  city: z.string().trim().min(2, 'Ville requise').max(80),
 });
 
 const currentYear = new Date().getFullYear();

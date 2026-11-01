@@ -8,7 +8,9 @@ import { useProfile } from '@/hooks/useAuth';
 import { useSettings } from '@/hooks/queries';
 import { AnchorButton, Button } from '@/components/ui/Button';
 import { Input, Select, Textarea } from '@/components/ui/Field';
-import { Badge, Card, EmptyState, ErrorState, LoadingBlock, Notice, PageHeader } from '@/components/ui/Display';
+import { Badge, Card, EmptyState, ErrorState, LoadingBlock, Notice } from '@/components/ui/Display';
+import { CityHero } from '@/components/cities/CityHero';
+import { PAGE_CITY } from '@/domain/cities';
 import { Modal, useToast } from '@/components/ui/Overlay';
 import { createTicket, listMyTickets } from '@/services/support.service';
 import { supportContacts } from '@/services/catalog.service';
@@ -47,7 +49,8 @@ export default function SupportPage() {
 
   return (
     <>
-      <PageHeader
+      <CityHero
+        city={profile.role === 'mechanic' ? PAGE_CITY.proSupport : PAGE_CITY.clientSupport}
         title="Support"
         subtitle="Une question, une réclamation, un souci pendant une intervention ?"
         actions={

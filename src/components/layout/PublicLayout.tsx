@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { Link, NavLink, Outlet, useLocation } from 'react-router-dom';
 import clsx from 'clsx';
 import { ShieldAlert } from 'lucide-react';
@@ -8,18 +8,12 @@ import { ButtonLink } from '@/components/ui/Button';
 import { useAuth, homePathFor } from '@/hooks/useAuth';
 import { BRAND } from '@/config/env';
 import { EMERGENCY_NOTICE } from '@/domain/catalog';
-import { IntroSplash } from '@/components/motion/IntroSplash';
-import { introState, scrollToTop, shouldPlayIntro, startSmoothScroll, stopSmoothScroll, useScrolled } from '@/components/motion/motion';
+import { scrollToTop, startSmoothScroll, stopSmoothScroll, useScrolled } from '@/components/motion/motion';
 
 export function PublicLayout() {
   const { profile } = useAuth();
   const { pathname } = useLocation();
   const scrolled = useScrolled(12);
-  const [intro, setIntro] = useState(() => {
-    const play = shouldPlayIntro();
-    if (!play) introState.set(true);
-    return play;
-  });
 
   useEffect(() => {
     startSmoothScroll();
@@ -35,7 +29,6 @@ export function PublicLayout() {
 
   return (
     <div className="flex min-h-dvh flex-col">
-      {intro && <IntroSplash onFinished={() => setIntro(false)} />}
       <header
         className={clsx(
           'sticky top-0 z-30 border-b backdrop-blur transition-[background-color,border-color,box-shadow] duration-500',
@@ -105,7 +98,7 @@ export function PublicLayout() {
           </div>
         </div>
         <p className="pb-8 text-center text-xs text-silver-600">
-          © {new Date().getFullYear()} {BRAND.name} — {BRAND.city}, {BRAND.country}
+          © {new Date().getFullYear()} {BRAND.name} — partout en {BRAND.country}
         </p>
       </footer>
     </div>

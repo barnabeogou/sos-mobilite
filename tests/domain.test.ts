@@ -147,8 +147,9 @@ describe('validation', () => {
     expect(quoteSchema.safeParse({ labor: '12000', parts: '0', travel: '2000' }).success).toBe(true);
   });
   it('exige des mots de passe identiques et l’acceptation des conditions', () => {
-    const base = { full_name: 'Awa K.', phone: '+225 07 00 00 00 00', email: 'awa@example.com', password: 'motdepasse1', password_confirm: 'motdepasse1', terms: true };
+    const base = { full_name: 'Awa K.', phone: '+225 07 00 00 00 00', email: 'awa@example.com', city: 'Bouaké', password: 'motdepasse1', password_confirm: 'motdepasse1', terms: true };
     expect(clientSignUpSchema.safeParse(base).success).toBe(true);
+    expect(clientSignUpSchema.safeParse({ ...base, city: '' }).success).toBe(false);
     expect(clientSignUpSchema.safeParse({ ...base, password_confirm: 'autre1234' }).success).toBe(false);
     expect(clientSignUpSchema.safeParse({ ...base, terms: false }).success).toBe(false);
     expect(clientSignUpSchema.safeParse({ ...base, phone: '12' }).success).toBe(false);

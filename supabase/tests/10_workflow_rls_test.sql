@@ -48,7 +48,7 @@ insert into auth.users (id, email, raw_user_meta_data) values
   ('00000000-0000-0000-0000-0000000000c2', 'client2@test.local', '{"full_name":"Client Deux","role":"admin"}'),
   ('00000000-0000-0000-0000-0000000000a1', 'meca1@test.local',   '{"full_name":"Méca Un","role":"mechanic","business_name":"Garage Un"}'),
   ('00000000-0000-0000-0000-0000000000a2', 'meca2@test.local',   '{"full_name":"Méca Deux","role":"mechanic"}'),
-  ('00000000-0000-0000-0000-0000000000a3', 'meca3@test.local',   '{"full_name":"Méca Trois","role":"mechanic"}'),
+  ('00000000-0000-0000-0000-0000000000a3', 'meca3@test.local',   '{"full_name":"Méca Trois","role":"mechanic","city":"Bouaké","commune":"Koko"}'),
   ('00000000-0000-0000-0000-0000000000d1', 'super@test.local',   '{"full_name":"Super Admin"}'),
   ('00000000-0000-0000-0000-0000000000d2', 'support@test.local', '{"full_name":"Agent Support"}');
 
@@ -61,6 +61,10 @@ select tst.ok((select role from public.profiles where email = 'client2@test.loca
 select tst.ok((select count(*) from public.mechanic_profiles) = 3, 'profil pro créé pour chaque mécanicien');
 select tst.ok((select business_name from public.mechanic_profiles where id = '00000000-0000-0000-0000-0000000000a1') = 'Garage Un',
               'raison sociale reprise de l''inscription');
+select tst.ok((select city = 'Bouaké' and commune = 'Koko' from public.profiles where email = 'meca3@test.local'),
+              'la ville choisie à l''inscription est enregistrée (couverture nationale)');
+select tst.ok((select city from public.profiles where email = 'client1@test.local') = 'Abidjan',
+              'sans ville indiquée, Abidjan par défaut');
 
 -- ---------------------------------------------------------------------------
 -- Espace mécanicien : configuration, validation obligatoire

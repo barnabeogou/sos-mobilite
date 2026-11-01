@@ -1,7 +1,9 @@
 import { useQuery } from '@tanstack/react-query';
 import { Star } from 'lucide-react';
 import { useProfile } from '@/hooks/useAuth';
-import { Card, EmptyState, ErrorState, LoadingBlock, PageHeader, Rating } from '@/components/ui/Display';
+import { Card, EmptyState, ErrorState, LoadingBlock, Rating } from '@/components/ui/Display';
+import { CityHero } from '@/components/cities/CityHero';
+import { PAGE_CITY } from '@/domain/cities';
 import { listMyReviews } from '@/services/mechanic.service';
 import { useMechanicProfile } from './useMechanic';
 import { formatDate } from '@/lib/format';
@@ -15,7 +17,7 @@ export default function MechanicReviewsPage() {
 
   return (
     <>
-      <PageHeader title="Mes évaluations" subtitle="Notes laissées par les clients après paiement d’une intervention." />
+      <CityHero city={PAGE_CITY.proReviews} title="Mes évaluations" subtitle="Notes laissées par les clients après paiement d’une intervention." />
       {mech.data && (
         <Card className="mb-6 flex items-center gap-4">
           <span className="font-display text-5xl font-extrabold">

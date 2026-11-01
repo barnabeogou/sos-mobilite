@@ -20,6 +20,7 @@ import { BRAND } from '@/config/env';
 import { SignalMap } from '@/components/motion/SignalMap';
 import { BrandMarquee } from '@/components/motion/BrandMarquee';
 import { Reveal } from '@/components/motion/Reveal';
+import { CityTiles } from '@/components/cities/CityTiles';
 import { cssVars, useIntroDone, useScrollProgress } from '@/components/motion/motion';
 
 const STEPS = [
@@ -61,7 +62,7 @@ export function HomePage() {
             className="hero-item inline-flex items-center gap-2 rounded-full border border-electric-500/30 bg-electric-500/10 px-3 py-1 text-xs font-semibold text-electric-300"
             style={cssVars({ '--i': 0 })}
           >
-            <MapPin className="h-3.5 w-3.5" /> Lancement à {BRAND.city}, {BRAND.country}
+            <MapPin className="h-3.5 w-3.5" /> Partout en {BRAND.country}
           </p>
           <h1 className="mt-5 text-4xl font-extrabold leading-[1.05] text-white sm:text-5xl lg:text-6xl">
             <span className="line" style={cssVars({ '--i': 1 })}>
@@ -137,6 +138,26 @@ export function HomePage() {
             ))}
           </ul>
         </Reveal>
+      </section>
+
+      {/* Couverture nationale */}
+      <section className="mx-auto max-w-6xl px-4 pt-16 md:px-8" aria-labelledby="villes">
+        <Reveal as="p" className="text-center text-xs font-bold uppercase tracking-[0.3em] text-electric-300">
+          Partout en {BRAND.country}
+        </Reveal>
+        <Reveal as="h2" variant="mask" delay={60} className="mt-2 text-center text-3xl font-bold md:text-4xl" id="villes">
+          Les grandes villes, un même réflexe : SOS
+        </Reveal>
+        <Reveal as="p" delay={140} className="mx-auto mt-3 max-w-xl text-center text-silver-400">
+          D’Abidjan à Korhogo, de San-Pédro à Bondoukou : où que vous soyez, la demande part vers les professionnels vérifiés
+          les plus proches.
+        </Reveal>
+        <div className="mt-8">
+          <CityTiles />
+        </div>
+        <p className="mt-6 flex items-center justify-center gap-3 text-center text-xs font-semibold uppercase tracking-[0.25em] text-silver-500">
+          <span className="h-px w-8 bg-alert-500" aria-hidden /> Toujours à vos côtés <span className="h-px w-8 bg-alert-500" aria-hidden />
+        </p>
       </section>
 
       {/* Valeurs */}

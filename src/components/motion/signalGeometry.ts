@@ -1,5 +1,5 @@
 /**
- * Géométrie commune de l'intro et de la carte « signal » du héros (repère SVG centré, -200 → 200).
+ * Géométrie de la carte « signal » du héros (repère SVG centré, -200 → 200).
  * Plan abstrait : quelques grands axes et, en bas, une lagune — un clin d'œil à Abidjan.
  */
 export const STREETS = [
@@ -11,19 +11,6 @@ export const STREETS = [
 ];
 
 export const LAGOON = 'M-200 128 C-128 100 -66 164 2 142 C72 120 126 172 200 150 L200 200 L-200 200 Z';
-
-/** Professionnels de l'intro (proches du centre). Le premier est celui qui accepte. */
-export const INTRO_PROS: [number, number][] = [
-  [54, -62],
-  [-92, 30],
-  [70, 108],
-  [-124, -78],
-  [136, 36],
-  [-28, 96],
-];
-
-/** Itinéraire du professionnel qui accepte jusqu'au client (centre). */
-export const INTRO_ROUTE = 'M54 -62 C46 -36 26 -14 0 0';
 
 /** Professionnels de la carte du héros, au-delà du bouton SOS. */
 export const HERO_PROS: [number, number][] = [

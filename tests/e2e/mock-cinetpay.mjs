@@ -7,12 +7,12 @@
  *  - transferts : /v1/auth/login, /v1/transfer/contact, /v1/transfer/money/send/contact
  *    (statut NEW puis notification), /v1/transfer/check/money (VAL).
  *
- * Usage : MOCK_SECRET=... node tests/e2e/mock-cinetpay.mjs  (port 54340)
+ * Usage : MOCK_SECRET=... node tests/e2e/mock-cinetpay.mjs  (port 4340)
  */
 import http from 'node:http';
 import crypto from 'node:crypto';
 
-const PORT = Number(process.env.PORT ?? 54340);
+const PORT = Number(process.env.PORT ?? 4340);
 const API_KEY = process.env.MOCK_API_KEY ?? 'mock-api-key';
 const SITE_ID = process.env.MOCK_SITE_ID ?? '105000';
 const SECRET = process.env.MOCK_SECRET ?? 'mock-secret';

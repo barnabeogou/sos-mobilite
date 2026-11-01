@@ -5,6 +5,7 @@ export interface ClientSignUp {
   full_name: string;
   phone: string;
   email: string;
+  city: string;
   commune?: string | null;
   password: string;
 }
@@ -20,7 +21,7 @@ export async function signUpClient(input: ClientSignUp) {
     password: input.password,
     options: {
       emailRedirectTo: `${env.appUrl}/connexion?confirme=1`,
-      data: { role: 'client', full_name: input.full_name, phone: input.phone, commune: input.commune ?? null },
+      data: { role: 'client', full_name: input.full_name, phone: input.phone, city: input.city, commune: input.commune ?? null },
     },
   });
   if (error) throw error;
@@ -38,6 +39,7 @@ export async function signUpMechanic(input: MechanicSignUp) {
         role: 'mechanic',
         full_name: input.full_name,
         phone: input.phone,
+        city: input.city,
         commune: input.commune ?? null,
         business_name: input.business_name ?? null,
       },

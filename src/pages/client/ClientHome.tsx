@@ -5,6 +5,7 @@ import { useProfile } from '@/hooks/useAuth';
 import { useCategories } from '@/hooks/queries';
 import { useRealtimeInvalidate } from '@/hooks/useRealtime';
 import { SosButton } from '@/components/brand/SosButton';
+import { CityHero, useMyCity } from '@/components/cities/CityHero';
 import { NamedIcon } from '@/components/ui/Icon';
 import { EmptyState, ErrorState, Notice } from '@/components/ui/Display';
 import { RequestListItem, StatusBadge } from '@/components/requests/RequestParts';
@@ -28,19 +29,24 @@ export default function ClientHome() {
   const active = requests.data?.find((r) => isActive(r.status));
   const recent = (requests.data ?? []).filter((r) => r.id !== active?.id).slice(0, 3);
   const reminders = computeReminders(vehicles.data ?? [], maintenance.data ?? []);
+  const city = useMyCity();
 
   return (
     <div className="space-y-8">
-      <section>
-        <h1 className="text-2xl font-bold md:text-3xl">Salut {firstName(profile.full_name) || 'à vous'}</h1>
-        <p className="mt-1 flex items-center gap-1.5 text-sm text-silver-400">
-          <MapPin className="h-4 w-4" aria-hidden />
-          {[profile.commune, profile.city].filter(Boolean).join(', ')}
-        </p>
-      </section>
+      <CityHero
+        city={city}
+        pin
+        title={`Salut ${firstName(profile.full_name) || 'à vous'}`}
+        subtitle={
+          <span className="flex items-center gap-1.5">
+            <MapPin className="h-4 w-4 text-alert-500" aria-hidden />
+            {[profile.commune, profile.city].filter(Boolean).join(', ')}
+          </span>
+        }
+      />
 
       {active ? (
-        <Link to={`/client/demandes/${active.id}`} className="card-interactive block border-electric-500/40 p-5">
+        <Link to={`/client/demandes/${active.id}`} className="card-interactive -mt-4 block border-electric-500/40 bg-gradient-to-br from-electric-500/[0.12] to-transparent p-5">
           <div className="flex items-center justify-between gap-3">
             <p className="text-xs font-semibold uppercase tracking-wider text-electric-300">Intervention en cours</p>
             <StatusBadge status={active.status} />
@@ -54,7 +60,7 @@ export default function ClientHome() {
       ) : (
         <section className="flex flex-col items-center">
           <SosButton to="/client/sos" />
-          <div className="grid w-full max-w-md grid-cols-3 gap-3">
+          <div className="stagger grid w-full max-w-md grid-cols-3 gap-3">
             {QUICK_SERVICES.map((slug) => {
               const c = categories?.find((x) => x.slug === slug);
               if (!c) return null;
@@ -99,7 +105,7 @@ export default function ClientHome() {
         ) : recent.length === 0 ? (
           <EmptyState title="Aucune intervention pour l’instant">Vos demandes d’assistance apparaîtront ici.</EmptyState>
         ) : (
-          <div className="space-y-2">
+          <div className="stagger space-y-2">
             {recent.map((r) => (
               <RequestListItem key={r.id} request={r} category={catById.get(r.category_id)} to={`/client/demandes/${r.id}`} />
             ))}

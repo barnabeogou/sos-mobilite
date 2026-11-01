@@ -45,6 +45,8 @@ async function newPage(opts, geo) {
 }
 let n = 0;
 async function shot(page, name, fullPage = true) {
+  // L'intro de lancement (une fois par session) ne doit pas masquer les captures
+  await page.locator('.intro').waitFor({ state: 'detached', timeout: 8000 }).catch(() => {});
   await page.waitForTimeout(400);
   // CLEAN=1 : masque les barres fixes (en-tête, onglets, toasts) qui se répètent sur une capture pleine page
   const clean = process.env.CLEAN === '1' && fullPage;
@@ -96,7 +98,8 @@ await client.goto(`${APP}/inscription`);
 await client.getByLabel('Nom complet').fill(CLIENT.name);
 await client.getByLabel('Téléphone').fill(CLIENT.phone);
 await client.getByLabel('Adresse e-mail').fill(CLIENT.email);
-await client.getByLabel('Commune').selectOption('Plateau');
+await client.getByLabel('Ville').selectOption('Abidjan');
+await client.getByLabel('Commune / quartier').selectOption('Plateau');
 await client.getByLabel('Mot de passe', { exact: true }).fill(CLIENT.pw);
 await client.getByLabel('Confirmer le mot de passe').fill(CLIENT.pw);
 await client.getByRole('checkbox').check();
@@ -135,7 +138,8 @@ await mech.getByLabel('Nom et prénom').fill(MECH.name);
 await mech.getByLabel(/Nom du garage/).fill(MECH.business);
 await mech.getByLabel('Téléphone professionnel').fill(MECH.phone);
 await mech.getByLabel('Adresse e-mail').fill(MECH.email);
-await mech.getByLabel('Commune principale d’intervention').selectOption('Plateau');
+await mech.getByLabel('Ville principale d’intervention').selectOption('Abidjan');
+await mech.getByLabel('Commune / quartier de l’atelier').selectOption('Plateau');
 await mech.getByLabel('Mot de passe', { exact: true }).fill(MECH.pw);
 await mech.getByLabel('Confirmer le mot de passe').fill(MECH.pw);
 await mech.getByRole('checkbox').check();
@@ -166,6 +170,7 @@ await admin.goto(`${APP}/inscription`);
 await admin.getByLabel('Nom complet').fill(ADMIN.name);
 await admin.getByLabel('Téléphone').fill(ADMIN.phone);
 await admin.getByLabel('Adresse e-mail').fill(ADMIN.email);
+await admin.getByLabel('Ville').selectOption('Yamoussoukro');
 await admin.getByLabel('Mot de passe', { exact: true }).fill(ADMIN.pw);
 await admin.getByLabel('Confirmer le mot de passe').fill(ADMIN.pw);
 await admin.getByRole('checkbox').check();
@@ -292,7 +297,7 @@ if (ONLINE) {
   await client.getByText('Payer l’intervention').first().waitFor();
   await shot(client, 'client-payer');
   await client.getByRole('button', { name: 'Payer 48 000 FCFA' }).click();
-  await client.waitForURL(/localhost:54340\/pay\//);
+  await client.waitForURL(/localhost:4340\/pay\//);
   await client.getByText('48 000 FCFA').first().waitFor();
   await shot(client, 'guichet-paiement-test');
   await client.getByRole('button', { name: 'Valider le paiement' }).click();

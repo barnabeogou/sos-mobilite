@@ -115,41 +115,54 @@
   transition: transform 0.85s var(--ease-io), opacity 0.5s ease;
 }
 .intro[data-leaving] .intro-stage { transform: translateY(-8vh); opacity: 0; }
-.intro-map { width: min(80vw, 54vh, 480px); height: auto; overflow: visible; }
+.intro-map { width: min(80vw, 46vh, 420px); height: auto; overflow: visible; }
 .intro-map * { transform-box: fill-box; transform-origin: center; }
 
-.i-lagoon { fill: rgba(30, 123, 255, 0.07); opacity: 0; animation: fade 1.2s ease 0.2s forwards; }
-.i-streets path {
+/* Carte de Côte d'Ivoire : le contour se dessine, l'alerte part d'Abidjan et gagne toutes les villes.
+   --k règle la vitesse (version courte pour les personnes connectées et l'application installée). */
+.li-land { fill: rgba(30, 123, 255, 0.09); opacity: 0; animation: fade calc(var(--k) * 900ms) ease calc(var(--k) * 450ms) forwards; }
+.li-border {
   fill: none;
-  stroke: rgba(167, 176, 189, 0.2);
-  stroke-width: 1;
+  stroke: rgba(125, 180, 255, 0.75);
+  stroke-width: 1.4;
+  stroke-linejoin: round;
   stroke-dasharray: 1;
   stroke-dashoffset: 1;
-  animation: draw 1.2s var(--ease-out) forwards;
-  animation-delay: calc(120ms + var(--i) * 80ms);
+  animation: draw calc(var(--k) * 1100ms) var(--ease-out) 60ms forwards;
 }
-.i-rings circle {
+.li-arcs path {
   fill: none;
-  stroke: rgba(30, 123, 255, 0.4);
+  stroke: rgba(76, 151, 255, 0.7);
   stroke-width: 1;
-  opacity: 0;
-  animation: ring-in 1.2s var(--ease-out) forwards;
-  animation-delay: calc(260ms + var(--i) * 150ms);
-}
-.i-route {
-  fill: none;
-  stroke: #4c97ff;
-  stroke-width: 2.5;
   stroke-linecap: round;
   stroke-dasharray: 1;
   stroke-dashoffset: 1;
-  animation: draw 0.6s var(--ease-io) 1.2s forwards;
+  animation: draw calc(var(--k) * 650ms) var(--ease-io) forwards;
+  animation-delay: calc(var(--k) * (520ms + var(--i) * 60ms));
 }
-.i-pros circle { fill: #4c97ff; transform: scale(0); animation: pop 0.45s var(--ease-out) forwards; animation-delay: calc(700ms + var(--i) * 70ms); }
-.i-pros circle.chosen { animation: pop 0.45s var(--ease-out) 0.7s forwards, chosen 0.5s var(--ease-out) 1.75s forwards; }
-.i-pulse { fill: none; stroke: #e30613; stroke-width: 1.5; opacity: 0; animation: ping 1.6s var(--ease-out) 0.15s infinite; }
-.i-pulse-late { animation-delay: 0.95s; }
-.i-me { fill: #e30613; transform: scale(0); animation: pop 0.5s var(--ease-out) 0.05s forwards; }
+.li-cities circle { fill: #4c97ff; transform: scale(0); animation: pop calc(var(--k) * 420ms) var(--ease-out) forwards; animation-delay: calc(var(--k) * (1000ms + var(--i) * 60ms)); }
+.li-cities text {
+  fill: #c2c9d3;
+  font: 600 8.5px Inter, system-ui, sans-serif;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  opacity: 0;
+  animation: fade calc(var(--k) * 500ms) ease forwards;
+  animation-delay: calc(var(--k) * (1080ms + var(--i) * 60ms));
+}
+.li-cities .li-halo { fill: rgba(76, 151, 255, 0.18); transform: scale(0); animation: pop calc(var(--k) * 600ms) var(--ease-out) forwards; animation-delay: calc(var(--k) * (1000ms + var(--i) * 60ms)); }
+.li-sos { fill: #e30613; transform: scale(0); animation: pop 0.45s var(--ease-out) calc(var(--k) * 150ms) forwards; }
+.li-ping { fill: none; stroke: #e30613; stroke-width: 1.4; opacity: 0; animation: ping 1.6s var(--ease-out) calc(var(--k) * 200ms) infinite; }
+.li-ping-late { animation-delay: calc(var(--k) * 200ms + 0.8s); }
+.intro-reach {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.32em;
+  text-transform: uppercase;
+  color: #7db4ff;
+  opacity: 0;
+  animation: rise 0.7s var(--ease-out) calc(var(--k) * 1900ms) forwards;
+}
 
 .intro-word {
   display: flex;
@@ -166,9 +179,9 @@
   display: inline-block;
   transform: translateY(115%);
   animation: line-up 0.8s var(--ease-out) forwards;
-  animation-delay: calc(980ms + var(--i) * 38ms);
+  animation-delay: calc(var(--k, 1) * 1250ms + var(--i) * 36ms);
 }
-.intro-slogan { color: #a7b0bd; font-size: 0.98rem; opacity: 0; animation: rise 0.8s var(--ease-out) 1.5s forwards; }
+.intro-slogan { color: #a7b0bd; font-size: 0.98rem; opacity: 0; animation: rise 0.8s var(--ease-out) calc(var(--k, 1) * 1700ms) forwards; }
 .intro-progress { position: absolute; inset: auto 0 0 0; height: 2px; background: rgba(255, 255, 255, 0.06); }
 .intro-progress span {
   display: block;
@@ -176,7 +189,7 @@
   background: linear-gradient(90deg, #1e7bff, #e30613);
   transform-origin: left;
   transform: scaleX(0);
-  animation: grow 2.4s linear forwards;
+  animation: grow var(--hold, 2.4s) linear forwards;
 }
 .intro-skip {
   position: absolute;
@@ -301,4 +314,100 @@
 
 @media print {
   [data-reveal], [data-reveal] > .mask-inner { opacity: 1 !important; transform: none !important; }
+}
+
+/* villes:start — illustrations des villes (bandeaux, vignettes, intro) */
+.cs { display: block; width: 100%; height: 100%; }
+.cs * { transform-box: fill-box; transform-origin: center; }
+.cs-name { font-family: Montserrat, system-ui, sans-serif; font-weight: 800; letter-spacing: 0.01em; }
+@keyframes cs-twinkle { from { opacity: 0.12; } to { opacity: 0.9; } }
+@keyframes cs-flicker { 0%, 100% { opacity: 0.95; } 44% { opacity: 0.5; } 52% { opacity: 0.9; } }
+@keyframes cs-beacon { 0%, 100% { opacity: 1; } 50% { opacity: 0.12; } }
+@keyframes cs-car { from { transform: translateX(30px); } to { transform: translateX(970px); } }
+@keyframes cs-car-rev { from { transform: translateX(970px); } to { transform: translateX(30px); } }
+@keyframes cs-trail { to { stroke-dashoffset: -72; } }
+@keyframes cs-sway { from { transform: rotate(-4deg); } to { transform: rotate(5deg); } }
+@keyframes cs-shimmer { from { opacity: 0.04; transform: translateX(-9px); } to { opacity: 0.3; transform: translateX(9px); } }
+@keyframes cs-beam { 0%, 100% { transform: scaleX(1); } 50% { transform: scaleX(-1); } }
+@keyframes cs-bob { from { transform: translateY(-1.6px) rotate(-1.2deg); } to { transform: translateY(1.6px) rotate(1.2deg); } }
+@keyframes cs-mist { from { transform: translateX(-46px); } to { transform: translateX(46px); } }
+@keyframes cs-jet { from { opacity: 0.2; } to { opacity: 0.85; } }
+@keyframes cs-zoom { from { transform: scale(1); } to { transform: scale(1.045); } }
+@media (prefers-reduced-motion: no-preference) {
+  .cs-stars circle { animation: cs-twinkle var(--t, 4s) ease-in-out var(--d, 0s) infinite alternate; }
+  .cs-lt { animation: cs-flicker 5s ease-in-out var(--d, 0s) infinite; }
+  .cs-beacon { animation: cs-beacon 1.8s ease-in-out var(--d, 0s) infinite; }
+  .cs-car { animation: cs-car 9s linear infinite; }
+  .cs-car-rev { animation-name: cs-car-rev; animation-duration: 11s; }
+  .cs-car-2 { animation-delay: -5s; }
+  .cs-trail { animation: cs-trail 2.6s linear infinite; }
+  .cs-trail-rev { animation-direction: reverse; animation-duration: 3.4s; }
+  .cs-spot { transform-origin: 50% 100%; animation: cs-sway 7s ease-in-out infinite alternate; }
+  .cs-spot-rev { animation-delay: -3.5s; }
+  .cs-shimmer line { animation: cs-shimmer 3.2s ease-in-out var(--d, 0s) infinite alternate; }
+  .cs-beam { transform-box: view-box; transform-origin: 634px 138px; animation: cs-beam 7s ease-in-out infinite; }
+  .cs-boat { animation: cs-bob 3.4s ease-in-out var(--d, 0s) infinite alternate; }
+  .cs-mist { animation: cs-mist 16s ease-in-out infinite alternate; }
+  .cs-mist-rev { animation-direction: alternate-reverse; }
+  .cs-jet { animation: cs-jet 2.2s ease-in-out infinite alternate; }
+  .cs-zoom { transform-origin: 50% 100%; animation: cs-zoom 24s ease-in-out infinite alternate; will-change: transform; }
+  [data-paused] .cs *, [data-paused].cs-zoom { animation-play-state: paused !important; }
+}
+/* villes:end */
+
+/* ==========================================================================
+   Animations de l'application (espaces client, pro, administration)
+   ========================================================================== */
+@keyframes hero-art-in { from { opacity: 0; transform: scale(1.06); } to { opacity: 1; transform: none; } }
+@keyframes tab-pop { 0% { transform: translateY(0) scale(1); } 40% { transform: translateY(-3px) scale(1.12); } 100% { transform: translateY(0) scale(1); } }
+@keyframes shimmer-bg { from { background-position: -200% 0; } to { background-position: 200% 0; } }
+@keyframes dot-ping { 0% { transform: scale(1); opacity: 0.7; } 100% { transform: scale(2.6); opacity: 0; } }
+
+/* Indicateur de l'onglet actif qui glisse d'un onglet à l'autre */
+.tabbar-indicator {
+  position: absolute;
+  top: 0.375rem;
+  bottom: max(env(safe-area-inset-bottom), 0.5rem);
+  left: 0.25rem;
+  border-radius: 1rem;
+  background: rgba(30, 123, 255, 0.16);
+  box-shadow: inset 0 0 0 1px rgba(76, 151, 255, 0.28), 0 8px 24px -12px rgba(30, 123, 255, 0.8);
+  transition: transform 0.5s var(--ease-out), width 0.5s var(--ease-out), opacity 0.3s ease;
+  pointer-events: none;
+}
+
+.skeleton {
+  border-radius: 1rem;
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0.03) 25%, rgba(255, 255, 255, 0.08) 50%, rgba(255, 255, 255, 0.03) 75%);
+  background-size: 200% 100%;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .app-page { animation: page-in 0.5s var(--ease-out) both; }
+  .city-hero-art { animation: hero-art-in 1.2s var(--ease-out) both; }
+  .city-hero-title > * { animation: rise 0.8s var(--ease-out) 0.14s both; }
+  .city-hero-title > * + * { animation-delay: 0.24s; }
+  .city-pin { animation: rise 0.8s var(--ease-out) 0.35s both; }
+  .stagger > * { animation: rise 0.6s var(--ease-out) both; }
+  .stagger > :nth-child(1) { animation-delay: 0.06s; }
+  .stagger > :nth-child(2) { animation-delay: 0.12s; }
+  .stagger > :nth-child(3) { animation-delay: 0.18s; }
+  .stagger > :nth-child(4) { animation-delay: 0.24s; }
+  .stagger > :nth-child(5) { animation-delay: 0.3s; }
+  .stagger > :nth-child(6) { animation-delay: 0.36s; }
+  .stagger > :nth-child(7) { animation-delay: 0.42s; }
+  .stagger > :nth-child(n + 8) { animation-delay: 0.48s; }
+  .tab-link[aria-current='page'] .tab-icon { animation: tab-pop 0.5s var(--ease-out); }
+  .skeleton { animation: shimmer-bg 1.6s linear infinite; }
+  .live-dot { position: relative; }
+  .live-dot::after { content: ''; position: absolute; inset: 0; border-radius: 999px; background: inherit; animation: dot-ping 1.6s var(--ease-out) infinite; }
+  .press { transition: transform 0.25s var(--ease-out), box-shadow 0.25s ease, border-color 0.25s ease; }
+  .press:active { transform: scale(0.98); }
+  .card-interactive:active { transform: scale(0.985); }
+  @media (hover: hover) {
+    .card-interactive:hover { transform: translateY(-2px); box-shadow: 0 18px 40px -22px rgba(30, 123, 255, 0.55); }
+  }
+  @media (hover: hover) {
+    .press:hover { transform: translateY(-2px); }
+  }
 }

@@ -43,7 +43,7 @@ export default function AdminMechanics() {
               <div className="min-w-0 flex-1">
                 <p className="truncate font-semibold">{m.business_name || m.profile?.full_name || '—'}</p>
                 <p className="truncate text-xs text-silver-400">
-                  {mechanicKindLabel(m.kind)} · {m.commune ?? 'commune ?'} · {m.profile?.phone ?? 'sans téléphone'} · inscrit le {formatDate(m.created_at)}
+                  {mechanicKindLabel(m.kind)} · {[m.commune, m.profile?.city].filter(Boolean).join(', ') || 'lieu ?'} · {m.profile?.phone ?? 'sans téléphone'} · inscrit le {formatDate(m.created_at)}
                 </p>
               </div>
               <Rating value={m.rating_avg} count={m.rating_count} className="hidden sm:inline-flex" />

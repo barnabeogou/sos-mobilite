@@ -4,7 +4,9 @@ import { BadgeCheck, Clock3, Crosshair, MapPin, UsersRound } from 'lucide-react'
 import { useCategories } from '@/hooks/queries';
 import { Button, ButtonLink } from '@/components/ui/Button';
 import { Select } from '@/components/ui/Field';
-import { Avatar, Badge, EmptyState, ErrorState, LoadingBlock, Notice, PageHeader, Rating, Segmented } from '@/components/ui/Display';
+import { Avatar, Badge, EmptyState, ErrorState, LoadingBlock, Notice, Rating, Segmented } from '@/components/ui/Display';
+import { CityHero } from '@/components/cities/CityHero';
+import { PAGE_CITY } from '@/domain/cities';
 import { nearbyMechanics } from '@/services/requests.service';
 import { GEO_ERROR_MESSAGES, GeoError, formatDistance, getCurrentPosition, type GeoPoint } from '@/domain/geo';
 import { mechanicKindLabel } from '@/domain/catalog';
@@ -45,7 +47,7 @@ export default function NearbyMechanicsPage() {
 
   return (
     <>
-      <PageHeader title="Mécanos proches" subtitle="Des professionnels vérifiés près de vous." />
+      <CityHero city={PAGE_CITY.clientMechanics} title="Mécanos proches" subtitle="Des professionnels vérifiés près de vous." />
 
       {!pos ? (
         <div className="space-y-3">

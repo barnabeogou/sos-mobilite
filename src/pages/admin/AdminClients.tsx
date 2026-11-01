@@ -37,7 +37,7 @@ export default function AdminClients() {
               <div className="min-w-0 flex-1">
                 <p className="truncate font-semibold">{u.full_name || '—'}</p>
                 <p className="truncate text-xs text-silver-400">
-                  {u.email} · {u.phone ?? 'sans téléphone'} · {u.commune ?? u.city} · depuis le {formatDate(u.created_at)}
+                  {u.email} · {u.phone ?? 'sans téléphone'} · {[u.commune, u.city].filter(Boolean).join(', ')} · depuis le {formatDate(u.created_at)}
                 </p>
               </div>
               {u.is_suspended && <Badge tone="danger">Suspendu</Badge>}

@@ -12,6 +12,7 @@ import { Badge, Card, EmptyState, ErrorState, LoadingBlock, Notice, StatCard } f
 import { useToast } from '@/components/ui/Overlay';
 import { NamedIcon, VehicleIcon } from '@/components/ui/Icon';
 import { StatusBadge } from '@/components/requests/RequestParts';
+import { CityHero, useMyCity } from '@/components/cities/CityHero';
 import { listMyMissions, listMyPayments, listOpenProposals, respondToAssignment, setMyAvailability } from '@/services/mechanic.service';
 import { useMechanicProfile, useOnboardingChecklist } from './useMechanic';
 import { MISSION_ACTIVE_STATUSES, REQUEST_STATUS, VERIFICATION_STATUS } from '@/domain/status';
@@ -38,6 +39,7 @@ export default function MechanicHome() {
   useRealtimeInvalidate('service_requests', `assigned_mechanic_id=eq.${profile.id}`, [['missions', profile.id]]);
 
   const [toggling, setToggling] = useState(false);
+  const city = useMyCity();
   const toggle = async () => {
     if (!mech.data) return;
     setToggling(true);
@@ -65,10 +67,17 @@ export default function MechanicHome() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold md:text-3xl">Bonjour {firstName(profile.full_name)}</h1>
-        <p className="mt-1 text-sm text-silver-400">{m.business_name || 'Espace professionnel'}</p>
-      </div>
+      <CityHero
+        city={city}
+        pin
+        title={`Bonjour ${firstName(profile.full_name)}`}
+        subtitle={
+          <span className="flex items-center gap-1.5">
+            <MapPin className="h-4 w-4 text-alert-500" aria-hidden />
+            {[m.business_name || 'Espace professionnel', m.commune, profile.city].filter(Boolean).join(' · ')}
+          </span>
+        }
+      />
 
       {!approved && (
         <Notice tone={vs.tone} title={vs.label}>
@@ -143,7 +152,7 @@ export default function MechanicHome() {
               {m.is_available ? 'Les nouvelles demandes compatibles apparaîtront ici en temps réel.' : 'Rendez-vous disponible pour en recevoir.'}
             </EmptyState>
           ) : (
-            <div className="space-y-3">
+            <div className="stagger space-y-3">
               {proposals.data.map((p) => (
                 <ProposalCard
                   key={p.assignment_id}

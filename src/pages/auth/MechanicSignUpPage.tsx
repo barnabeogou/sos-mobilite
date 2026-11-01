@@ -5,11 +5,11 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import type { z } from 'zod';
 import { BadgeCheck, MailCheck } from 'lucide-react';
 import { AuthLayout } from './AuthLayout';
-import { Checkbox, Input, Select } from '@/components/ui/Field';
+import { Checkbox, Input } from '@/components/ui/Field';
+import { LocationFields } from '@/components/forms/LocationFields';
 import { Button } from '@/components/ui/Button';
 import { ErrorState, Notice } from '@/components/ui/Display';
 import { mechanicSignUpSchema } from '@/domain/validation';
-import { ABIDJAN_COMMUNES } from '@/domain/catalog';
 import { signUpMechanic } from '@/services/auth.service';
 import { errorMessage } from '@/lib/errors';
 
@@ -19,7 +19,7 @@ export default function MechanicSignUpPage() {
   const [error, setError] = useState<string | null>(null);
   const [pendingEmail, setPendingEmail] = useState<string | null>(null);
   const navigate = useNavigate();
-  const { register, handleSubmit, formState } = useForm<Form>({ resolver: zodResolver(mechanicSignUpSchema) });
+  const { register, handleSubmit, formState, watch, setValue } = useForm<Form>({ resolver: zodResolver(mechanicSignUpSchema) });
 
   const onSubmit = handleSubmit(async (v) => {
     setError(null);
@@ -29,7 +29,8 @@ export default function MechanicSignUpPage() {
         business_name: v.business_name || null,
         phone: v.phone,
         email: v.email,
-        commune: v.commune,
+        city: v.city,
+        commune: v.commune || null,
         password: v.password,
       });
       if (res.session) navigate('/pro/profil', { replace: true });
@@ -74,14 +75,14 @@ export default function MechanicSignUpPage() {
         <Input label="Nom du garage / de l’entreprise" optional {...register('business_name')} error={formState.errors.business_name?.message} />
         <Input label="Téléphone professionnel" type="tel" inputMode="tel" placeholder="+225 07 00 00 00 00" {...register('phone')} error={formState.errors.phone?.message} />
         <Input label="Adresse e-mail" type="email" inputMode="email" autoComplete="email" {...register('email')} error={formState.errors.email?.message} />
-        <Select label="Commune principale d’intervention" {...register('commune')} error={formState.errors.commune?.message}>
-          <option value="">Choisir…</option>
-          {ABIDJAN_COMMUNES.map((c) => (
-            <option key={c} value={c}>
-              {c}
-            </option>
-          ))}
-        </Select>
+        <LocationFields
+          city={watch('city')}
+          cityField={register('city', { onChange: () => setValue('commune', '') })}
+          communeField={register('commune')}
+          cityLabel="Ville principale d’intervention"
+          communeLabel="Commune / quartier de l’atelier"
+          cityError={formState.errors.city?.message}
+        />
         <Input label="Mot de passe" type="password" autoComplete="new-password" {...register('password')} error={formState.errors.password?.message} />
         <Input label="Confirmer le mot de passe" type="password" autoComplete="new-password" {...register('password_confirm')} error={formState.errors.password_confirm?.message} />
         <Checkbox

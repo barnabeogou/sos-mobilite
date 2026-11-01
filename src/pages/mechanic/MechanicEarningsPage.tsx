@@ -3,7 +3,9 @@ import { useQuery } from '@tanstack/react-query';
 import { BadgeDollarSign, Crown, Wallet } from 'lucide-react';
 import { useProfile } from '@/hooks/useAuth';
 import { useSettings } from '@/hooks/queries';
-import { Badge, Card, EmptyState, ErrorState, LoadingBlock, Notice, PageHeader, StatCard } from '@/components/ui/Display';
+import { Badge, Card, EmptyState, ErrorState, LoadingBlock, Notice, StatCard } from '@/components/ui/Display';
+import { CityHero } from '@/components/cities/CityHero';
+import { PAGE_CITY } from '@/domain/cities';
 import { useRealtimeInvalidate } from '@/hooks/useRealtime';
 import { listMyPayments } from '@/services/mechanic.service';
 import { numericSetting } from '@/services/catalog.service';
@@ -40,7 +42,7 @@ export default function MechanicEarningsPage() {
 
   return (
     <>
-      <PageHeader title="Mes gains" subtitle="Interventions payées et commission de la plateforme." />
+      <CityHero city={PAGE_CITY.proEarnings} title="Mes gains" subtitle="Interventions payées, versements et commission de la plateforme." />
 
       <div className="mb-6 grid grid-cols-2 gap-3 md:grid-cols-4">
         <StatCard label="Encaissé" value={<span className="text-lg">{formatFCFA(gross)}</span>} hint={`${confirmed.length} intervention(s)`} />

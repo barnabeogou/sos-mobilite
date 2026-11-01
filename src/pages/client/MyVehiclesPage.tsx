@@ -7,7 +7,9 @@ import { AlarmClock, CarFront, Pencil, Plus, ShieldCheck, Trash2, Wrench } from 
 import { useProfile } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/Button';
 import { Input, Select, Textarea } from '@/components/ui/Field';
-import { Card, EmptyState, ErrorState, LoadingBlock, Notice, PageHeader } from '@/components/ui/Display';
+import { Card, EmptyState, ErrorState, LoadingBlock, Notice } from '@/components/ui/Display';
+import { CityHero } from '@/components/cities/CityHero';
+import { PAGE_CITY } from '@/domain/cities';
 import { Modal, useToast } from '@/components/ui/Overlay';
 import { VehicleIcon } from '@/components/ui/Icon';
 import {
@@ -65,7 +67,8 @@ export default function MyVehiclesPage() {
 
   return (
     <>
-      <PageHeader
+      <CityHero
+        city={PAGE_CITY.clientVehicles}
         title="Mon véhicule"
         subtitle="Suivez l’entretien et l’assurance de vos engins, et soyez prévenu avant les échéances."
         actions={

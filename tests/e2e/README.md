@@ -19,7 +19,7 @@ DATABASE_URL=postgres://postgres@127.0.0.1:55433/postgres node tests/e2e/journey
 Paiement dans l'application (`ONLINE=1`) — en plus des étapes ci-dessus :
 
 ```bash
-# faux CinetPay (guichet, notification signée, contrôle, API de transfert) sur le port 54340
+# faux CinetPay (guichet, notification signée, contrôle, API de transfert) sur le port 4340
 node tests/e2e/mock-cinetpay.mjs
 # backend de test relayant /functions/v1/* vers l'Edge Function locale
 DATABASE_URL=postgres://postgres@127.0.0.1:55433/postgres FUNCTIONS_TARGET=http://127.0.0.1:8000 node tests/e2e/local-backend.mjs
@@ -27,7 +27,7 @@ DATABASE_URL=postgres://postgres@127.0.0.1:55433/postgres FUNCTIONS_TARGET=http:
 cd supabase/functions/payments && NO_PROXY=127.0.0.1,localhost SUPABASE_URL=http://127.0.0.1:54321 \
   SUPABASE_ANON_KEY=<ANON> SUPABASE_SERVICE_ROLE_KEY=<SERVICE> \
   CINETPAY_API_KEY=mock-api-key CINETPAY_SITE_ID=105000 CINETPAY_SECRET_KEY=mock-secret CINETPAY_TRANSFER_PASSWORD=mock-transfer-password \
-  CINETPAY_CHECKOUT_URL=http://127.0.0.1:54340 CINETPAY_TRANSFER_URL=http://127.0.0.1:54340 \
+  CINETPAY_CHECKOUT_URL=http://127.0.0.1:4340 CINETPAY_TRANSFER_URL=http://127.0.0.1:4340 \
   APP_URL=http://localhost:5173 PUBLIC_FUNCTIONS_URL=http://127.0.0.1:54321/functions/v1 \
   deno run --allow-net --allow-env --allow-read index.ts
 # parcours

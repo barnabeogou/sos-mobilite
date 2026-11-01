@@ -3,15 +3,16 @@ import clsx from 'clsx';
 import { Check, ChevronRight } from 'lucide-react';
 import { Badge } from '@/components/ui/Display';
 import { NamedIcon } from '@/components/ui/Icon';
-import { REQUEST_STATUS, TIMELINE_STEPS, progressIndex } from '@/domain/status';
+import { REQUEST_STATUS, TIMELINE_STEPS, isActive, progressIndex } from '@/domain/status';
+import { nearestLocality } from '@/domain/cities';
 import { formatFCFA } from '@/domain/pricing';
-import { formatDateTime, formatTime } from '@/lib/format';
+import { formatDateTime, formatTime, timeAgo } from '@/lib/format';
 import type { PriceOffer, PriceOfferStatus, Quote, RequestStatus, ServiceCategory, ServiceRequest, StatusHistoryEntry } from '@/types/database';
 
 export function StatusBadge({ status }: { status: RequestStatus }) {
   const meta = REQUEST_STATUS[status];
   return (
-    <Badge tone={meta.tone} dot>
+    <Badge tone={meta.tone} dot live={isActive(status)}>
       {meta.label}
     </Badge>
   );
@@ -28,17 +29,25 @@ export function RequestListItem({
   to: string;
   subtitle?: string;
 }) {
+  const place = nearestLocality({ lat: request.lat, lng: request.lng })?.locality.name;
   return (
-    <Link to={to} className="card-interactive flex items-center gap-4 p-4">
-      <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-night-950/60 text-electric-300 ring-1 ring-white/5">
-        <NamedIcon name={category?.icon ?? 'wrench'} className="h-5 w-5" />
+    <Link to={to} className="card-interactive flex items-start gap-4 p-4">
+      <span className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-night-950/60 text-electric-300 ring-1 ring-white/5">
+        <NamedIcon name={category?.icon ?? 'wrench'} className="h-6 w-6" />
       </span>
       <span className="min-w-0 flex-1">
-        <span className="block truncate font-semibold text-white">{category?.name ?? 'Assistance'}</span>
-        <span className="block truncate text-sm text-silver-400">{subtitle ?? `${request.reference} · ${formatDateTime(request.created_at)}`}</span>
+        <span className="flex items-start justify-between gap-2">
+          <span className="truncate pt-0.5 font-semibold text-white">{category?.name ?? 'Assistance'}</span>
+          <StatusBadge status={request.status} />
+        </span>
+        <span className="block truncate text-sm text-silver-400">{subtitle ?? request.reference}</span>
+        <span className="mt-1 flex items-center justify-between gap-2 text-sm">
+          <span className="truncate text-silver-500">{[place, timeAgo(request.created_at)].filter(Boolean).join(' · ')}</span>
+          <span className="inline-flex shrink-0 items-center gap-0.5 font-semibold text-electric-300">
+            Voir <ChevronRight className="h-4 w-4" aria-hidden />
+          </span>
+        </span>
       </span>
-      <StatusBadge status={request.status} />
-      <ChevronRight className="hidden h-5 w-5 text-silver-500 sm:block" aria-hidden />
     </Link>
   );
 }

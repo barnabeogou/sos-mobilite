@@ -24,13 +24,13 @@ export function getStats(): Promise<AdminStats> {
   return unwrap<AdminStats>(db().rpc('admin_dashboard_stats'));
 }
 
-export type ProfileMap = Record<string, Pick<Profile, 'id' | 'full_name' | 'phone' | 'email' | 'role' | 'is_suspended'>>;
+export type ProfileMap = Record<string, Pick<Profile, 'id' | 'full_name' | 'phone' | 'email' | 'role' | 'is_suspended' | 'city'>>;
 
 export async function profilesByIds(ids: string[]): Promise<ProfileMap> {
   const list = uniq(ids);
   if (!list.length) return {};
   const rows = await unwrapList<ProfileMap[string]>(
-    db().from('profiles').select('id, full_name, phone, email, role, is_suspended').in('id', list),
+    db().from('profiles').select('id, full_name, phone, email, role, is_suspended, city').in('id', list),
   );
   return Object.fromEntries(rows.map((r) => [r.id, r]));
 }

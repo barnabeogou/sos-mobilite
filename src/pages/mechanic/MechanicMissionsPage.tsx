@@ -3,7 +3,9 @@ import { useQuery } from '@tanstack/react-query';
 import { Wrench } from 'lucide-react';
 import { useProfile } from '@/hooks/useAuth';
 import { useCategories } from '@/hooks/queries';
-import { EmptyState, ErrorState, LoadingBlock, PageHeader, Segmented } from '@/components/ui/Display';
+import { EmptyState, ErrorState, LoadingBlock, Segmented } from '@/components/ui/Display';
+import { CityHero } from '@/components/cities/CityHero';
+import { PAGE_CITY } from '@/domain/cities';
 import { RequestListItem } from '@/components/requests/RequestParts';
 import { listMyMissions } from '@/services/mechanic.service';
 import { MISSION_ACTIVE_STATUSES } from '@/domain/status';
@@ -25,7 +27,7 @@ export default function MechanicMissionsPage() {
 
   return (
     <>
-      <PageHeader title="Mes missions" subtitle="Missions acceptées ou attribuées par le support." />
+      <CityHero city={PAGE_CITY.proMissions} title="Mes missions" subtitle="Missions acceptées ou attribuées par le support." />
       <Segmented
         className="mb-4"
         value={filter}

@@ -5,11 +5,11 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import type { z } from 'zod';
 import { MailCheck } from 'lucide-react';
 import { AuthLayout } from './AuthLayout';
-import { Checkbox, Input, Select } from '@/components/ui/Field';
+import { Checkbox, Input } from '@/components/ui/Field';
+import { LocationFields } from '@/components/forms/LocationFields';
 import { Button } from '@/components/ui/Button';
 import { ErrorState, Notice } from '@/components/ui/Display';
 import { clientSignUpSchema } from '@/domain/validation';
-import { ABIDJAN_COMMUNES } from '@/domain/catalog';
 import { signUpClient } from '@/services/auth.service';
 import { errorMessage } from '@/lib/errors';
 
@@ -22,12 +22,12 @@ export default function ClientSignUpPage() {
   const [params] = useSearchParams();
   const next = params.get('suite') === 'sos' ? '/client/sos' : '/client';
 
-  const { register, handleSubmit, formState } = useForm<Form>({ resolver: zodResolver(clientSignUpSchema) });
+  const { register, handleSubmit, formState, watch, setValue } = useForm<Form>({ resolver: zodResolver(clientSignUpSchema) });
 
   const onSubmit = handleSubmit(async (v) => {
     setError(null);
     try {
-      const res = await signUpClient({ full_name: v.full_name, phone: v.phone, email: v.email, commune: v.commune || null, password: v.password });
+      const res = await signUpClient({ full_name: v.full_name, phone: v.phone, email: v.email, city: v.city, commune: v.commune || null, password: v.password });
       if (res.session) navigate(next, { replace: true });
       else setPendingEmail(v.email);
     } catch (e) {
@@ -79,14 +79,12 @@ export default function ClientSignUpPage() {
           error={formState.errors.phone?.message}
         />
         <Input label="Adresse e-mail" type="email" inputMode="email" autoComplete="email" {...register('email')} error={formState.errors.email?.message} />
-        <Select label="Commune" optional {...register('commune')}>
-          <option value="">—</option>
-          {ABIDJAN_COMMUNES.map((c) => (
-            <option key={c} value={c}>
-              {c}
-            </option>
-          ))}
-        </Select>
+        <LocationFields
+          city={watch('city')}
+          cityField={register('city', { onChange: () => setValue('commune', '') })}
+          communeField={register('commune')}
+          cityError={formState.errors.city?.message}
+        />
         <Input label="Mot de passe" type="password" autoComplete="new-password" hint="8 caractères minimum, avec lettres et chiffres." {...register('password')} error={formState.errors.password?.message} />
         <Input label="Confirmer le mot de passe" type="password" autoComplete="new-password" {...register('password_confirm')} error={formState.errors.password_confirm?.message} />
         <Checkbox

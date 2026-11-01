@@ -97,23 +97,28 @@ export function useIntroDone(): boolean {
 
 const INTRO_KEY = 'sos-intro-vue';
 
+/** Pages d'arrivée où l'intro accueille le visiteur (jamais sur un lien direct vers une intervention). */
+const ENTRY_PATHS = new Set(['/', '/client', '/pro', '/admin', '/connexion', '/inscription', '/inscription/professionnel']);
+
 /**
- * L'intro n'est jouée qu'à la première visite de la page d'accueil dans la session.
- * Jamais pour : l'application installée (accès d'urgence), une personne déjà connectée,
- * « réduire les animations », ou `?sans-intro`.
+ * Intro de lancement, une fois par session :
+ *  - `full` pour un visiteur ;
+ *  - `short` pour une personne connectée ou l'application installée (accès rapide en cas de panne) ;
+ *  - aucune pour un lien direct (suivi, retour de paiement…), « réduire les animations » ou `?sans-intro`.
  */
-export function shouldPlayIntro(): boolean {
-  if (typeof window === 'undefined') return false;
+export function launchIntroMode(): 'full' | 'short' | null {
+  if (typeof window === 'undefined') return null;
   try {
-    if (window.location.pathname !== '/') return false;
-    if (new URLSearchParams(window.location.search).has('sans-intro')) return false;
-    if (prefersReducedMotion()) return false;
-    if (window.matchMedia?.('(display-mode: standalone)').matches) return false;
-    if (window.sessionStorage.getItem(INTRO_KEY)) return false;
-    if (Object.keys(window.localStorage).some((k) => k.startsWith('sb-') && k.endsWith('-auth-token'))) return false;
-    return true;
+    const path = window.location.pathname.replace(/\/+$/, '') || '/';
+    if (!ENTRY_PATHS.has(path)) return null;
+    if (new URLSearchParams(window.location.search).has('sans-intro')) return null;
+    if (prefersReducedMotion()) return null;
+    if (window.sessionStorage.getItem(INTRO_KEY)) return null;
+    const signedIn = Object.keys(window.localStorage).some((k) => k.startsWith('sb-') && k.endsWith('-auth-token'));
+    const installed = Boolean(window.matchMedia?.('(display-mode: standalone)').matches);
+    return signedIn || installed ? 'short' : 'full';
   } catch {
-    return false;
+    return null;
   }
 }
 
