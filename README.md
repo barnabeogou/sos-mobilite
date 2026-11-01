@@ -94,8 +94,11 @@ Réglages à faire une fois dans les tableaux de bord :
    « Netlify team login » pour que le public puisse ouvrir le site.
 3. **Premier super administrateur** : créer son compte sur le site, puis dans l’éditeur SQL Supabase
    `update public.profiles set role = 'admin', admin_level = 'super_admin' where email = '…';`
-4. **E-mails** : le service d’envoi intégré de Supabase est limité à quelques messages par heure ; brancher un SMTP
-   (Authentication → Emails → SMTP) avant l’ouverture au public.
+4. **E-mails** : le service d’envoi intégré de Supabase est limité à 2 messages par heure pour tout le projet.
+   *État au 1er novembre 2026* : la confirmation d’adresse à l’inscription est **désactivée**
+   (Authentication → Sign In / Providers → Confirm email) pour que les inscriptions ne soient plus bloquées.
+   À faire : brancher Gmail en SMTP (Authentication → Emails → SMTP : `smtp.gmail.com`, port 465, mot de passe
+   d’application Google), relever la limite (Authentication → Rate Limits), puis réactiver la confirmation.
 - **Nom de domaine personnalisé** : prévoir HTTPS (obligatoire pour la géolocalisation et l’installation PWA).
 - **Android** : depuis Chrome, menu → « Installer l’application ». Une application native (Play Store) pourra ensuite être produite à partir du même code (Capacitor) — étape 5 de la feuille de route.
 
