@@ -83,6 +83,8 @@ Configurer la réécriture de toutes les routes vers `index.html` (application m
 | Site | https://sos-mobilite.netlify.app (projet Netlify `sos-mobilite`) |
 | Base | Supabase `amopbblmejoabauqkiul` (organisation « SOS », région eu-west-3 Paris), 6 migrations appliquées |
 | Configuration | `netlify.toml` (variables publiques, réécriture SPA, en-têtes de sécurité, cache) et `public/_redirects` |
+| Code source | https://github.com/barnabeogou/sos-mobilite (branche `main`) |
+| Mise en ligne | automatique : chaque envoi sur `main` est construit (`npm run build`) et publié par Netlify |
 
 Réglages à faire une fois dans les tableaux de bord :
 
