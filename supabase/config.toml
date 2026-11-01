@@ -1,0 +1,9 @@
+# Configuration minimale pour la CLI Supabase (npx supabase link / db push).
+project_id = "sos-mobilite"
+
+[auth]
+site_url = "http://localhost:5173"
+additional_redirect_urls = ["http://localhost:5173/connexion", "http://localhost:5173/nouveau-mot-de-passe"]
+
+[auth.email]
+enable_confirmations = true

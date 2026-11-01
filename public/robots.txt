@@ -1,0 +1,5 @@
+User-agent: *
+Allow: /
+Disallow: /client
+Disallow: /pro
+Disallow: /admin
