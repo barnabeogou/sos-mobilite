@@ -39,6 +39,9 @@ export function errorMessage(err: unknown): string {
   if (/Email not confirmed/i.test(msg)) return 'Confirmez votre adresse e-mail via le lien reçu avant de vous connecter.';
   if (/User already registered/i.test(msg)) return 'Un compte existe déjà avec cette adresse e-mail.';
   if (/Password should be at least/i.test(msg)) return 'Le mot de passe est trop court (8 caractères minimum).';
+  // Limite d'envoi du service d'e-mails (et non une faute de la personne) : rien n'a été créé.
+  if (e.code === 'over_email_send_rate_limit' || /email rate limit/i.test(msg))
+    return 'L’e-mail n’a pas pu être envoyé : le service d’envoi est momentanément saturé. Réessayez un peu plus tard ou contactez le support.';
   if (/rate limit|too many requests/i.test(msg)) return 'Trop de tentatives. Patientez quelques minutes.';
   if (/permission denied|row-level security|violates row-level/i.test(msg)) return 'Action non autorisée.';
   if (/Failed to fetch|NetworkError|Load failed|network/i.test(msg))

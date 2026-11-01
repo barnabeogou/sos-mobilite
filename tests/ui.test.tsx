@@ -42,5 +42,7 @@ describe('interface', () => {
     expect(errorMessage({ message: 'X', hint: 'Demande introuvable.' })).toBe('Demande introuvable.');
     expect(errorMessage({ message: 'Invalid login credentials' })).toBe('E-mail ou mot de passe incorrect.');
     expect(errorMessage({ message: 'new row violates row-level security policy' })).toBe('Action non autorisée.');
+    expect(errorMessage({ message: 'email rate limit exceeded', code: 'over_email_send_rate_limit', status: 429 })).toMatch(/service d’envoi/);
+    expect(errorMessage({ message: 'Request rate limit reached', code: 'over_request_rate_limit', status: 429 })).toMatch(/Trop de tentatives/);
   });
 });
