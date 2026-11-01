@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { commissionSplit, formatFCFA, priceRangeLabel, quoteTotal } from '@/domain/pricing';
+import { commissionSplit, formatFCFA, offerBounds, priceRangeLabel, quoteTotal } from '@/domain/pricing';
 import { addDaysISO, computeReminders, daysLabel, daysUntil } from '@/domain/reminders';
 import { distanceKm, formatDistance } from '@/domain/geo';
 import { ACTIVE_STATUSES, CLIENT_CAN_CANCEL, progressIndex, REQUEST_STATUS, TIMELINE_STEPS } from '@/domain/status';
@@ -30,6 +30,15 @@ describe('pricing', () => {
     expect(priceRangeLabel(null, null)).toBeNull();
     expect(priceRangeLabel(5000, 15000)).toBe('5 000 FCFA – 15 000 FCFA');
     expect(priceRangeLabel(5000, null)).toBe('À partir de 5 000 FCFA');
+  });
+
+  it('borne les contre-propositions comme propose_price() côté base', () => {
+    // Devis de 20 000 F, plancher 50 % : entre 10 000 et 19 999 F
+    expect(offerBounds(20000, 0.5)).toEqual({ min: 10000, max: 19999 });
+    // Supplément : total proposé 30 000 F, 20 000 F déjà validés → au-dessus de 20 000 F
+    expect(offerBounds(30000, 0.5, 20000)).toEqual({ min: 20001, max: 29999 });
+    // Aucune marge possible
+    expect(offerBounds(1, 0.5)).toBeNull();
   });
 });
 

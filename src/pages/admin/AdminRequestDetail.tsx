@@ -10,7 +10,7 @@ import { Select, Textarea } from '@/components/ui/Field';
 import { Badge, Card, DefinitionList, ErrorState, LoadingBlock, Notice } from '@/components/ui/Display';
 import { Modal, useToast } from '@/components/ui/Overlay';
 import { hasAdminLevel } from '@/components/layout/Guards';
-import { QuoteBreakdown, StatusBadge } from '@/components/requests/RequestParts';
+import { OfferHistory, QuoteBreakdown, StatusBadge } from '@/components/requests/RequestParts';
 import { getRequestDetail, requestPhotoUrls } from '@/services/requests.service';
 import { assignMechanic, listApprovedMechanics, setRequestStatus } from '@/services/admin.service';
 import { placeUrl } from '@/services/maps/maps';
@@ -48,7 +48,7 @@ export default function AdminRequestDetail() {
 
   if (detail.isLoading) return <LoadingBlock />;
   if (detail.isError || !detail.data) return <ErrorState message={errorMessage(detail.error)} onRetry={() => detail.refetch()} />;
-  const { request, quotes, assignments, payment, review, history, mechanic, client, vehicle } = detail.data;
+  const { request, quotes, offers, assignments, payment, review, history, mechanic, client, vehicle } = detail.data;
   const category = categories?.find((c) => c.id === request.category_id);
 
   return (
@@ -181,6 +181,11 @@ export default function AdminRequestDetail() {
               </div>
             ))}
           </div>
+          {offers.length > 0 && (
+            <div className="mt-4 border-t border-white/10 pt-4">
+              <OfferHistory offers={offers} quotes={quotes} viewer="admin" />
+            </div>
+          )}
         </Card>
       )}
 

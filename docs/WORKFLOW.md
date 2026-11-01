@@ -43,6 +43,7 @@
 | Propositions limitées dans le temps (10 min par défaut) | `platform_settings.proposal_timeout_minutes` |
 | Personne ne répond : le client peut élargir le rayon (5 → 10 → 20 → 30 km) pour atteindre des pros au-delà de leur zone, alerte des opérations | `expand_search` |
 | Une proposition expirée est reproposée tant que la demande est en recherche ; une proposition refusée ne l’est jamais | `offer_open_requests` |
+| Négociation : le client peut proposer un autre prix (une proposition à la fois, 3 au plus par demande, inférieure au devis et au moins 50 % de celui-ci ; pour un supplément, au-dessus du devis déjà validé). Le pro accepte (devis « prix négocié » validé d’office), garde son prix ou envoie un autre montant | `propose_price`, `respond_to_price_offer`, `submit_quote` |
 | Pas de déplacement sans devis validé | `start_route` |
 | Code d’arrivée : bon professionnel / bon client | `verify_arrival_code` |
 | Aucun supplément sans accord : un nouveau devis doit être accepté, la mission ne peut pas être terminée avant | `submit_quote`, `complete_mission` |

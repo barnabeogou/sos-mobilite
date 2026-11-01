@@ -11,6 +11,7 @@
 | Propositions avant acceptation | nombre et statut | les siennes, position ≈ 1 km | toutes |
 | Code d’arrivée | le sien | **jamais** (vérification côté serveur) | non |
 | Devis, paiements, avis, historique | de ses demandes | de ses missions | toutes |
+| Négociation du prix (contre-propositions) | celles de ses demandes | celles de ses missions | toutes (support+) |
 | Documents justificatifs | — | les siens | opérations+ |
 | Photos de panne | les siennes | mission attribuée ou proposée | support+ |
 | Catalogue, paramètres | lecture | lecture | écriture super_admin |
@@ -39,6 +40,6 @@ Le rôle administrateur ne peut jamais être obtenu à l’inscription.
 
 ## Tests
 
-`npm run test:db` vérifie automatiquement 82 points, dont : isolation des clients, absence d’auto-validation,
+`npm run test:db` vérifie automatiquement 98 points, dont : isolation des clients, absence d’auto-validation,
 mécanicien non validé jamais sollicité, position arrondie, code d’arrivée inaccessible au pro, refus des écritures
 directes, niveaux administrateur, dépôts de fichiers hors de son dossier refusés, RPC fermées aux anonymes.

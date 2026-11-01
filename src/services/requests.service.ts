@@ -4,6 +4,7 @@ import type {
   MechanicKind,
   NearbyMechanic,
   Payment,
+  PriceOffer,
   Quote,
   Review,
   ServiceRequest,
@@ -87,6 +88,8 @@ export interface RequestDetail {
   request: ServiceRequest;
   vehicle: Vehicle | null;
   quotes: Quote[];
+  /** Contre-propositions de prix du client, de la plus récente à la plus ancienne. */
+  offers: PriceOffer[];
   assignments: Pick<Assignment, 'id' | 'status' | 'expires_at' | 'distance_km' | 'mechanic_id' | 'proposed_at'>[];
   payment: Payment | null;
   review: Review | null;
@@ -98,11 +101,12 @@ export interface RequestDetail {
 /** Détail complet d'une demande, selon les droits de l'utilisateur (RLS). */
 export async function getRequestDetail(id: string): Promise<RequestDetail> {
   const request = await unwrap<ServiceRequest>(db().from('service_requests').select('*').eq('id', id).single());
-  const [vehicle, quotes, assignments, payment, review, history, mechanic, client] = await Promise.all([
+  const [vehicle, quotes, offers, assignments, payment, review, history, mechanic, client] = await Promise.all([
     request.vehicle_id
       ? unwrap<Vehicle | null>(db().from('vehicles').select('*').eq('id', request.vehicle_id).maybeSingle())
       : Promise.resolve(null),
     unwrapList<Quote>(db().from('quotes').select('*').eq('request_id', id).order('version', { ascending: false })),
+    unwrapList<PriceOffer>(db().from('price_offers').select('*').eq('request_id', id).order('created_at', { ascending: false })),
     unwrapList<RequestDetail['assignments'][number]>(
       db().from('assignments').select('id, status, expires_at, distance_km, mechanic_id, proposed_at').eq('request_id', id),
     ),
@@ -112,7 +116,7 @@ export async function getRequestDetail(id: string): Promise<RequestDetail> {
     request.assigned_mechanic_id ? getCounterpartMechanic(request.assigned_mechanic_id) : Promise.resolve(null),
     getCounterpartClient(request.client_id),
   ]);
-  return { request, vehicle, quotes, assignments, payment, review, history, mechanic, client };
+  return { request, vehicle, quotes, offers, assignments, payment, review, history, mechanic, client };
 }
 
 async function getCounterpartMechanic(id: string): Promise<CounterpartMechanic | null> {
@@ -178,6 +182,11 @@ export function cancelRequest(requestId: string, reason: string | null): Promise
 
 export function respondToQuote(quoteId: string, accept: boolean): Promise<ServiceRequest> {
   return unwrap<ServiceRequest>(db().rpc('respond_to_quote', { p_quote_id: quoteId, p_accept: accept }));
+}
+
+/** Négociation : le client propose un autre prix sur un devis en attente. */
+export function proposePrice(quoteId: string, amount: number, message: string | null): Promise<PriceOffer> {
+  return unwrap<PriceOffer>(db().rpc('propose_price', { p_quote_id: quoteId, p_amount: amount, p_message: message }));
 }
 
 export function confirmPayment(requestId: string): Promise<Payment> {

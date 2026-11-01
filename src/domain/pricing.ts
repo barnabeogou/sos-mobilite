@@ -42,3 +42,17 @@ export function priceRangeLabel(min: number | null, max: number | null): string 
   if (min != null) return `À partir de ${formatFCFA(min)}`;
   return `Jusqu’à ${formatFCFA(max)}`;
 }
+
+/** Paramètres de négociation par défaut — les valeurs de référence sont dans platform_settings. */
+export const DEFAULT_NEGOTIATION = { maxOffers: 3, minRatio: 0.5 };
+
+/**
+ * Fourchette autorisée pour une contre-proposition du client (mêmes règles que propose_price()) :
+ * inférieure au devis, au moins `minRatio` du devis et, pour un supplément, supérieure au devis déjà validé.
+ * Renvoie null si aucune contre-proposition n'est possible.
+ */
+export function offerBounds(quoteTotal: number, minRatio: number, acceptedTotal?: number | null): { min: number; max: number } | null {
+  const max = Math.round(quoteTotal) - 1;
+  const min = Math.max(Math.ceil(quoteTotal * minRatio), acceptedTotal != null ? Math.round(acceptedTotal) + 1 : 1);
+  return min <= max ? { min, max } : null;
+}

@@ -352,6 +352,90 @@ select tst.login('00000000-0000-0000-0000-0000000000c2');
 select public.cancel_request((select v::uuid from tst.ctx where k='req3'), 'Test terminé');
 
 -- ---------------------------------------------------------------------------
+-- Négociation du devis
+-- ---------------------------------------------------------------------------
+select tst.login('00000000-0000-0000-0000-0000000000c2');
+insert into tst.ctx
+select 'req4', (public.create_service_request((select id from public.service_categories where slug = 'batterie'),
+                5.3300, -4.0100, true)).id::text;
+select tst.login('00000000-0000-0000-0000-0000000000a1');
+select public.respond_to_assignment((select assignment_id from public.list_open_proposals()
+                                      where request_id = (select v::uuid from tst.ctx where k='req4')), true);
+insert into tst.ctx select 'q4a', (public.submit_quote((select v::uuid from tst.ctx where k='req4'), 20000)).id::text;
+
+select tst.login('00000000-0000-0000-0000-0000000000c2');
+select tst.fails($$ select public.propose_price((select v::uuid from tst.ctx where k='q4a'), 8000) $$,
+                 'OFFER_TOO_LOW', 'contre-proposition sous le plancher (50 % du devis) refusée');
+select tst.fails($$ select public.propose_price((select v::uuid from tst.ctx where k='q4a'), 25000) $$,
+                 'INVALID_AMOUNT', 'contre-proposition supérieure au devis refusée');
+insert into tst.ctx select 'offA', (public.propose_price((select v::uuid from tst.ctx where k='q4a'), 15000,
+                                                         'Je peux payer 15 000')).id::text;
+select tst.ok((select status from public.price_offers where id = (select v::uuid from tst.ctx where k='offA')) = 'pending',
+              'le client propose un autre prix');
+select tst.fails($$ select public.propose_price((select v::uuid from tst.ctx where k='q4a'), 16000) $$,
+                 'OFFER_PENDING', 'une seule proposition en attente à la fois');
+select tst.fails($$ insert into public.price_offers (request_id, quote_id, client_id, amount)
+                    values ((select v::uuid from tst.ctx where k='req4'), (select v::uuid from tst.ctx where k='q4a'), auth.uid(), 1) $$,
+                 'permission denied', 'aucune écriture directe dans les propositions de prix');
+
+select tst.login('00000000-0000-0000-0000-0000000000a2');
+select tst.fails($$ select public.respond_to_price_offer((select v::uuid from tst.ctx where k='offA'), true) $$,
+                 'OFFER_NOT_FOUND', 'un autre professionnel ne peut pas répondre');
+select tst.ok((select count(*) from public.price_offers) = 0, 'un autre professionnel ne voit pas la négociation');
+
+select tst.login('00000000-0000-0000-0000-0000000000a1');
+select tst.ok((select count(*) from public.price_offers where request_id = (select v::uuid from tst.ctx where k='req4')) = 1,
+              'le professionnel attribué voit la contre-proposition');
+select public.respond_to_price_offer((select v::uuid from tst.ctx where k='offA'), false);
+select tst.ok((select status from public.price_offers where id = (select v::uuid from tst.ctx where k='offA')) = 'rejected',
+              'le professionnel maintient son prix');
+insert into tst.ctx select 'q4b', (public.submit_quote((select v::uuid from tst.ctx where k='req4'), 18000)).id::text;
+
+select tst.login('00000000-0000-0000-0000-0000000000c2');
+insert into tst.ctx select 'offB', (public.propose_price((select v::uuid from tst.ctx where k='q4b'), 16000)).id::text;
+select tst.login('00000000-0000-0000-0000-0000000000a1');
+insert into tst.ctx select 'q4c', (public.submit_quote((select v::uuid from tst.ctx where k='req4'), 17500)).id::text;
+select tst.ok((select status from public.price_offers where id = (select v::uuid from tst.ctx where k='offB')) = 'cancelled',
+              'un nouveau montant du professionnel clôt la proposition en attente');
+
+select tst.login('00000000-0000-0000-0000-0000000000c2');
+insert into tst.ctx select 'offC', (public.propose_price((select v::uuid from tst.ctx where k='q4c'), 17000)).id::text;
+select tst.login('00000000-0000-0000-0000-0000000000a1');
+select public.respond_to_price_offer((select v::uuid from tst.ctx where k='offC'), false);
+select tst.login('00000000-0000-0000-0000-0000000000c2');
+select tst.fails($$ select public.propose_price((select v::uuid from tst.ctx where k='q4c'), 17200) $$,
+                 'OFFER_LIMIT', 'au plus 3 contre-propositions par demande');
+select tst.ok((public.respond_to_quote((select v::uuid from tst.ctx where k='q4c'), true)).status = 'quote_accepted',
+              'le client peut toujours accepter le devis');
+select public.cancel_request((select v::uuid from tst.ctx where k='req4'), 'Test négociation terminé');
+
+-- Prix du client accepté par le professionnel
+select tst.login('00000000-0000-0000-0000-0000000000c1');
+insert into tst.ctx
+select 'req5', (public.create_service_request((select id from public.service_categories where slug = 'batterie'),
+                5.3400, -4.0060, true)).id::text;
+select tst.login('00000000-0000-0000-0000-0000000000a2');
+select public.respond_to_assignment((select assignment_id from public.list_open_proposals()
+                                      where request_id = (select v::uuid from tst.ctx where k='req5')), true);
+insert into tst.ctx select 'q5', (public.submit_quote((select v::uuid from tst.ctx where k='req5'), 10000, 2000)).id::text;
+select tst.login('00000000-0000-0000-0000-0000000000c1');
+insert into tst.ctx select 'off5', (public.propose_price((select v::uuid from tst.ctx where k='q5'), 9000)).id::text;
+select tst.login('00000000-0000-0000-0000-0000000000a2');
+select tst.ok((public.respond_to_price_offer((select v::uuid from tst.ctx where k='off5'), true)).status = 'quote_accepted',
+              'le professionnel accepte le prix du client : devis validé, il peut partir');
+select tst.ok((select total_amount = 9000 and offer_id = (select v::uuid from tst.ctx where k='off5')
+                 from public.quotes where request_id = (select v::uuid from tst.ctx where k='req5') and status = 'accepted'),
+              'devis « prix négocié » créé au montant convenu');
+select tst.ok((select status from public.quotes where id = (select v::uuid from tst.ctx where k='q5')) = 'superseded',
+              'le devis initial est remplacé');
+reset role;
+select tst.ok((select count(*) from public.notifications where type = 'price_offer_accepted'
+                 and user_id = '00000000-0000-0000-0000-0000000000c1') = 1, 'le client est prévenu');
+set role authenticated;
+select tst.login('00000000-0000-0000-0000-0000000000c1');
+select public.cancel_request((select v::uuid from tst.ctx where k='req5'), 'Test terminé');
+
+-- ---------------------------------------------------------------------------
 -- Suspension
 -- ---------------------------------------------------------------------------
 select tst.login('00000000-0000-0000-0000-0000000000d1');

@@ -97,6 +97,11 @@ export function submitQuote(input: {
   );
 }
 
+/** Négociation : le professionnel accepte le prix proposé par le client ou maintient son devis. */
+export function respondToPriceOffer(offerId: string, accept: boolean): Promise<ServiceRequest> {
+  return unwrap<ServiceRequest>(db().rpc('respond_to_price_offer', { p_offer_id: offerId, p_accept: accept }));
+}
+
 export function startRoute(requestId: string): Promise<ServiceRequest> {
   return unwrap<ServiceRequest>(db().rpc('start_route', { p_request_id: requestId }));
 }

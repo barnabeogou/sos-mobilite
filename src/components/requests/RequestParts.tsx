@@ -6,7 +6,7 @@ import { NamedIcon } from '@/components/ui/Icon';
 import { REQUEST_STATUS, TIMELINE_STEPS, progressIndex } from '@/domain/status';
 import { formatFCFA } from '@/domain/pricing';
 import { formatDateTime, formatTime } from '@/lib/format';
-import type { Quote, RequestStatus, ServiceCategory, ServiceRequest, StatusHistoryEntry } from '@/types/database';
+import type { PriceOffer, PriceOfferStatus, Quote, RequestStatus, ServiceCategory, ServiceRequest, StatusHistoryEntry } from '@/types/database';
 
 export function StatusBadge({ status }: { status: RequestStatus }) {
   const meta = REQUEST_STATUS[status];
@@ -83,11 +83,14 @@ export function StatusTimeline({ status, history }: { status: RequestStatus; his
 }
 
 export function QuoteBreakdown({ quote }: { quote: Quote }) {
-  const lines = [
-    { label: 'Diagnostic et main-d’œuvre', v: quote.labor_amount },
-    { label: 'Pièces', v: quote.parts_amount },
-    { label: 'Déplacement', v: quote.travel_amount },
-  ].filter((l) => l.v > 0);
+  const negotiated = Boolean(quote.offer_id);
+  const lines = negotiated
+    ? [{ label: 'Prix négocié avec le client', v: quote.total_amount }]
+    : [
+        { label: 'Diagnostic et main-d’œuvre', v: quote.labor_amount },
+        { label: 'Pièces', v: quote.parts_amount },
+        { label: 'Déplacement', v: quote.travel_amount },
+      ].filter((l) => l.v > 0);
   return (
     <div className="space-y-2">
       {lines.map((l) => (
@@ -101,7 +104,47 @@ export function QuoteBreakdown({ quote }: { quote: Quote }) {
         <span className="font-display text-xl font-bold text-white">{formatFCFA(quote.total_amount)}</span>
       </div>
       {quote.eta_minutes && <p className="text-xs text-silver-400">Arrivée estimée : environ {quote.eta_minutes} min après validation.</p>}
-      {quote.notes && <p className="rounded-xl bg-night-950/50 p-3 text-sm text-silver-300">« {quote.notes} »</p>}
+      {quote.notes && !negotiated && <p className="rounded-xl bg-night-950/50 p-3 text-sm text-silver-300">« {quote.notes} »</p>}
+    </div>
+  );
+}
+
+const OFFER_STATUS: Record<PriceOfferStatus, { label: string; tone: 'neutral' | 'success' | 'danger' | 'warning' }> = {
+  pending: { label: 'En attente', tone: 'warning' },
+  accepted: { label: 'Acceptée', tone: 'success' },
+  rejected: { label: 'Prix maintenu', tone: 'danger' },
+  cancelled: { label: 'Remplacée', tone: 'neutral' },
+};
+
+/**
+ * Historique de la négociation : chaque proposition du client face au devis qu'elle visait.
+ * `viewer` adapte la formulation (« Vous avez proposé » / « Le client a proposé »).
+ */
+export function OfferHistory({ offers, quotes, viewer }: { offers: PriceOffer[]; quotes: Quote[]; viewer: 'client' | 'mechanic' | 'admin' }) {
+  if (!offers.length) return null;
+  const who = viewer === 'client' ? 'Vous avez proposé' : 'Le client a proposé';
+  return (
+    <div className="space-y-2">
+      <p className="text-xs font-semibold text-silver-400">Négociation</p>
+      <ol className="space-y-2">
+        {offers.map((o) => {
+          const q = quotes.find((x) => x.id === o.quote_id);
+          const st = OFFER_STATUS[o.status];
+          return (
+            <li key={o.id} className="flex items-start justify-between gap-3 rounded-xl bg-night-950/40 px-3 py-2.5 text-sm">
+              <div className="min-w-0">
+                <p className="text-silver-200">
+                  {who} <span className="font-semibold text-white">{formatFCFA(o.amount)}</span>
+                  {q && <span className="text-silver-500"> · devis {formatFCFA(q.total_amount)}</span>}
+                </p>
+                {o.message && <p className="mt-0.5 truncate text-xs text-silver-400">« {o.message} »</p>}
+                <p className="mt-0.5 text-xs text-silver-500">{formatDateTime(o.created_at)}</p>
+              </div>
+              <Badge tone={st.tone}>{st.label}</Badge>
+            </li>
+          );
+        })}
+      </ol>
     </div>
   );
 }

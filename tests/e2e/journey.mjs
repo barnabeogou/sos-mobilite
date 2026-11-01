@@ -1,6 +1,6 @@
 /**
  * Parcours de bout en bout (navigateur réel) contre le backend de test local :
- * inscription client & pro → validation admin → SOS → acceptation → devis →
+ * inscription client & pro → validation admin → SOS → acceptation → devis → négociation du prix →
  * déplacement → code d'arrivée → fin → paiement → avis → reçu.
  * Prend des captures d'écran de chaque étape dans docs/captures/.
  *
@@ -37,9 +37,28 @@ async function newPage(opts, geo) {
 let n = 0;
 async function shot(page, name, fullPage = true) {
   await page.waitForTimeout(400);
+  // CLEAN=1 : masque les barres fixes (en-tête, onglets, toasts) qui se répètent sur une capture pleine page
+  const clean = process.env.CLEAN === '1' && fullPage;
+  if (clean) {
+    await page.evaluate(() => {
+      for (const el of document.querySelectorAll('body *')) {
+        const pos = getComputedStyle(el).position;
+        if (pos === 'fixed' || pos === 'sticky') el.setAttribute('data-shot-hidden', el.style.visibility || ' ');
+      }
+      for (const el of document.querySelectorAll('[data-shot-hidden]')) el.style.visibility = 'hidden';
+    });
+  }
   n += 1;
   const file = `${OUT}/${String(n).padStart(2, '0')}-${name}.png`;
   await page.screenshot({ path: file, fullPage });
+  if (clean) {
+    await page.evaluate(() => {
+      for (const el of document.querySelectorAll('[data-shot-hidden]')) {
+        el.style.visibility = el.getAttribute('data-shot-hidden').trim();
+        el.removeAttribute('data-shot-hidden');
+      }
+    });
+  }
   console.log('📸', file);
 }
 const step = (s) => console.log(`\n▶ ${s}`);
@@ -202,12 +221,40 @@ await shot(mech, 'pro-devis');
 await mech.getByRole('button', { name: 'Envoyer le devis' }).click();
 await mech.getByText('Devis envoyé — en attente du client').first().waitFor();
 
-step('Le client valide le devis');
+step('Négociation du prix');
 await client.goto(requestUrl);
 await client.getByText('Devis proposé').first().waitFor();
 await shot(client, 'client-devis');
-await client.getByRole('button', { name: 'Valider le devis' }).click();
-await client.getByText('Devis validé.').first().waitFor();
+await client.getByRole('button', { name: 'Proposer un prix' }).click();
+await client.getByLabel('Votre prix').fill('45000');
+await client.getByLabel(/Message au professionnel/).fill('Je peux régler 45 000 F en espèces dès votre arrivée.');
+await shot(client, 'client-contre-proposition');
+await client.getByRole('button', { name: 'Envoyer ma proposition' }).click();
+await client.getByText('Votre proposition : 45 000 FCFA').first().waitFor();
+
+await mech.reload();
+await mech.getByText('Le client propose 45 000 FCFA').first().waitFor();
+await shot(mech, 'pro-contre-proposition');
+await mech.getByRole('button', { name: 'Garder mon prix' }).click();
+await mech.getByText('Vous maintenez votre prix.').first().waitFor();
+
+await client.reload();
+await client.getByText('Le professionnel maintient son prix').first().waitFor();
+await shot(client, 'client-prix-maintenu');
+await client.getByRole('button', { name: 'Proposer un prix' }).click();
+await client.getByLabel('Votre prix').fill('48000');
+await client.getByRole('button', { name: 'Envoyer ma proposition' }).click();
+await client.getByText('Votre proposition : 48 000 FCFA').first().waitFor();
+
+await mech.reload();
+await mech.getByRole('button', { name: 'Accepter 48 000 FCFA' }).click();
+await mech.getByText('Prix négocié validé').first().waitFor();
+await shot(mech, 'pro-prix-negocie');
+
+step('Le client voit le prix négocié validé');
+await client.reload();
+await client.getByText('Prix négocié validé').first().waitFor();
+await shot(client, 'client-prix-negocie');
 
 step('Déplacement et code d’arrivée');
 await mech.reload();
@@ -239,7 +286,7 @@ await shot(client, 'client-confirmation');
 await client.getByRole('button', { name: 'Tout est en ordre' }).click();
 await client.getByText('Évaluez la prestation').first().waitFor();
 await client.getByRole('radio', { name: '5 sur 5' }).click();
-await client.getByPlaceholder('Un commentaire ? (facultatif)').fill('Arrivé en 15 minutes, prix annoncé respecté. Merci !');
+await client.getByPlaceholder('Un commentaire ? (facultatif)').fill('Arrivé en 15 minutes, prix discuté et respecté. Merci !');
 await client.getByRole('button', { name: 'Envoyer mon avis' }).click();
 await client.getByText('Votre évaluation').first().waitFor();
 await shot(client, 'client-intervention-terminee');
@@ -271,7 +318,8 @@ const { rows } = await db.query(
     order by r.created_at desc limit 1`,
 );
 console.log('\nÉtat final en base :', rows[0]);
-if (rows[0].status !== 'closed' || rows[0].amount !== 52000 || rows[0].commission_amount !== 6240) throw new Error('État final inattendu');
+// Devis de 52 000 F négocié à 48 000 F ; commission Starter 12 % → 5 760 F
+if (rows[0].status !== 'closed' || rows[0].amount !== 48000 || rows[0].commission_amount !== 5760) throw new Error('État final inattendu');
 
 await browser.close();
 await db.end();

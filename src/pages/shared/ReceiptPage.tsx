@@ -97,7 +97,7 @@ export default function ReceiptPage() {
           <tbody className="divide-y divide-slate-100">
             {quote.labor_amount > 0 && (
               <tr>
-                <td className="py-2.5">Diagnostic et main-d’œuvre</td>
+                <td className="py-2.5">{quote.offer_id ? 'Prestation — prix négocié avec le client' : 'Diagnostic et main-d’œuvre'}</td>
                 <td className="py-2.5 text-right">{formatFCFA(quote.labor_amount)}</td>
               </tr>
             )}

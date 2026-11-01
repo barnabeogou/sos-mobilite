@@ -179,6 +179,23 @@ export interface Quote {
   status: QuoteStatus;
   created_at: string;
   responded_at: string | null;
+  /** Devis issu d'une négociation : proposition de prix du client acceptée. */
+  offer_id: string | null;
+}
+
+export type PriceOfferStatus = 'pending' | 'accepted' | 'rejected' | 'cancelled';
+
+/** Contre-proposition de prix du client sur un devis. */
+export interface PriceOffer {
+  id: string;
+  request_id: string;
+  quote_id: string;
+  client_id: string;
+  amount: number;
+  message: string | null;
+  status: PriceOfferStatus;
+  created_at: string;
+  responded_at: string | null;
 }
 
 export interface StatusHistoryEntry {

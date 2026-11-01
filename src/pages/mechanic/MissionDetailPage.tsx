@@ -13,11 +13,13 @@ import { Input, Select, Textarea } from '@/components/ui/Field';
 import { Avatar, Card, ErrorState, LoadingBlock, Notice, Rating } from '@/components/ui/Display';
 import { Modal, useToast } from '@/components/ui/Overlay';
 import { NamedIcon } from '@/components/ui/Icon';
-import { QuoteBreakdown, StatusBadge, StatusTimeline } from '@/components/requests/RequestParts';
+import { OfferHistory, QuoteBreakdown, StatusBadge, StatusTimeline } from '@/components/requests/RequestParts';
+import { MechanicOfferPanel } from '@/components/requests/Negotiation';
 import { getRequestDetail, reportProblem, requestPhotoUrls } from '@/services/requests.service';
 import {
   completeMission,
   declarePayment,
+  respondToPriceOffer,
   startRoute,
   submitQuote,
   verifyArrivalCode,
@@ -48,6 +50,7 @@ export default function MissionDetailPage() {
   const detail = useQuery({ queryKey: key, queryFn: () => getRequestDetail(id), refetchInterval: 30_000 });
   useRealtimeInvalidate('service_requests', `id=eq.${id}`, [key, ['missions', profile.id]]);
   useRealtimeInvalidate('quotes', `request_id=eq.${id}`, [key]);
+  useRealtimeInvalidate('price_offers', `request_id=eq.${id}`, [key]);
   useRealtimeInvalidate('payments', `request_id=eq.${id}`, [key]);
   const photos = useQuery({
     queryKey: ['request-photos', id],
@@ -62,6 +65,7 @@ export default function MissionDetailPage() {
   const [withdrawOpen, setWithdrawOpen] = useState(false);
   const [reportOpen, setReportOpen] = useState(false);
   const [supplementOpen, setSupplementOpen] = useState(false);
+  const [counterOpen, setCounterOpen] = useState(false);
 
   const refresh = () => {
     void qc.invalidateQueries({ queryKey: key });
@@ -83,11 +87,12 @@ export default function MissionDetailPage() {
   if (detail.isLoading) return <LoadingBlock />;
   if (detail.isError || !detail.data) return <ErrorState message={errorMessage(detail.error)} onRetry={() => detail.refetch()} />;
 
-  const { request, quotes, payment, review, history, client, vehicle } = detail.data;
+  const { request, quotes, offers, payment, review, history, client, vehicle } = detail.data;
   const category = categories?.find((c) => c.id === request.category_id);
   const pendingQuote = quotes.find((q) => q.status === 'proposed');
   const acceptedQuote = quotes.find((q) => q.status === 'accepted');
   const rejectedLast = quotes[0]?.status === 'rejected';
+  const pendingOffer = pendingQuote ? offers.find((o) => o.quote_id === pendingQuote.id && o.status === 'pending') : undefined;
   const plan = mech.data?.plan ?? 'starter';
   const rate = numericSetting(settings, plan === 'pro' ? 'commission_rate_pro' : 'commission_rate_starter', DEFAULT_COMMISSION[plan]);
   const s = request.status;
@@ -201,15 +206,44 @@ export default function MissionDetailPage() {
         />
       )}
       {pendingQuote && (
-        <Card className="border-amber-500/30">
-          <p className="mb-3 font-bold">{s === 'in_progress' ? 'Supplément en attente de validation' : 'Devis envoyé — en attente du client'}</p>
+        <Card className={pendingOffer ? 'border-electric-500/40' : 'border-amber-500/30'}>
+          <p className="mb-3 font-bold">
+            {pendingOffer
+              ? 'Le client discute le prix'
+              : s === 'in_progress'
+                ? 'Supplément en attente de validation'
+                : 'Devis envoyé — en attente du client'}
+          </p>
+          {pendingOffer && (
+            <div className="mb-4">
+              <MechanicOfferPanel
+                offer={pendingOffer}
+                quote={pendingQuote}
+                rate={rate}
+                busy={busy}
+                onAccept={() => run('offer-accept', () => respondToPriceOffer(pendingOffer.id, true), 'Prix accepté : le devis est validé.')}
+                onKeep={() => run('offer-keep', () => respondToPriceOffer(pendingOffer.id, false), 'Vous maintenez votre prix.')}
+                onCounter={() => setCounterOpen(true)}
+              />
+            </div>
+          )}
           <QuoteBreakdown quote={pendingQuote} />
+          {offers.length > 0 && (
+            <div className="mt-4 border-t border-white/10 pt-4">
+              <OfferHistory offers={offers} quotes={quotes} viewer="mechanic" />
+            </div>
+          )}
         </Card>
       )}
       {acceptedQuote && !pendingQuote && (
         <Card>
-          <p className="mb-3 font-bold">Devis validé par le client</p>
+          <p className="mb-3 font-bold">{acceptedQuote.offer_id ? 'Prix négocié validé' : 'Devis validé par le client'}</p>
           <QuoteBreakdown quote={acceptedQuote} />
+          {offers.length > 0 && (
+            <div className="mt-4 border-t border-white/10 pt-4">
+              <OfferHistory offers={offers} quotes={quotes} viewer="mechanic" />
+            </div>
+          )}
         </Card>
       )}
 
@@ -368,6 +402,18 @@ export default function MissionDetailPage() {
           busy={busy === 'quote'}
           onSubmit={(v) =>
             run('quote', () => submitQuote({ requestId: request.id, ...v }), 'Supplément envoyé au client.').then(() => setSupplementOpen(false))
+          }
+        />
+      </Modal>
+      <Modal open={counterOpen && Boolean(pendingQuote)} onClose={() => setCounterOpen(false)} title="Proposer un autre montant">
+        <QuoteFormCard
+          embedded
+          title=""
+          rate={rate}
+          defaults={pendingQuote ? { labor: pendingQuote.labor_amount, parts: pendingQuote.parts_amount, travel: pendingQuote.travel_amount } : undefined}
+          busy={busy === 'quote'}
+          onSubmit={(v) =>
+            run('quote', () => submitQuote({ requestId: request.id, ...v }), 'Nouveau montant envoyé au client.').then(() => setCounterOpen(false))
           }
         />
       </Modal>

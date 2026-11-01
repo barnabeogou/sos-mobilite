@@ -25,13 +25,15 @@ import { Avatar, Card, ErrorState, LoadingBlock, Notice, Rating, StarInput } fro
 import { Textarea } from '@/components/ui/Field';
 import { Modal, useToast } from '@/components/ui/Overlay';
 import { NamedIcon } from '@/components/ui/Icon';
-import { QuoteBreakdown, StatusBadge, StatusTimeline } from '@/components/requests/RequestParts';
+import { OfferHistory, QuoteBreakdown, StatusBadge, StatusTimeline } from '@/components/requests/RequestParts';
+import { ClientQuoteActions } from '@/components/requests/Negotiation';
 import {
   cancelRequest,
   confirmPayment,
   expandSearch,
   getArrivalCode,
   getRequestDetail,
+  proposePrice,
   reportProblem,
   requestPhotoUrls,
   respondToQuote,
@@ -40,7 +42,7 @@ import {
 import { supportContacts, numericSetting } from '@/services/catalog.service';
 import { CANCELLATION_RULE, mechanicKindLabel, paymentMethodLabel, symptomLabel, vehicleTypeLabel } from '@/domain/catalog';
 import { CLIENT_CAN_CANCEL, CLIENT_CAN_REPORT, REQUEST_STATUS } from '@/domain/status';
-import { formatFCFA } from '@/domain/pricing';
+import { DEFAULT_NEGOTIATION, formatFCFA } from '@/domain/pricing';
 import { formatCountdown, formatDateTime, secondsLeft, telHref, whatsappHref } from '@/lib/format';
 import { errorMessage } from '@/lib/errors';
 import { placeUrl } from '@/services/maps/maps';
@@ -54,11 +56,14 @@ export default function RequestTrackingPage() {
   const { data: settings } = useSettings();
   const support = supportContacts(settings);
   const maxRadius = numericSetting(settings, 'max_search_radius_km', 30);
+  const maxOffers = numericSetting(settings, 'max_price_offers', DEFAULT_NEGOTIATION.maxOffers);
+  const minOfferRatio = numericSetting(settings, 'min_offer_ratio', DEFAULT_NEGOTIATION.minRatio);
 
   const key = ['request', id];
   const detail = useQuery({ queryKey: key, queryFn: () => getRequestDetail(id), refetchInterval: 30_000 });
   useRealtimeInvalidate('service_requests', `id=eq.${id}`, [key, ['my-requests', profile.id]]);
   useRealtimeInvalidate('quotes', `request_id=eq.${id}`, [key]);
+  useRealtimeInvalidate('price_offers', `request_id=eq.${id}`, [key]);
   useRealtimeInvalidate('assignments', `request_id=eq.${id}`, [key]);
   useRealtimeInvalidate('payments', `request_id=eq.${id}`, [key]);
 
@@ -100,7 +105,7 @@ export default function RequestTrackingPage() {
   if (detail.isLoading) return <LoadingBlock />;
   if (detail.isError || !detail.data) return <ErrorState message={errorMessage(detail.error)} onRetry={() => detail.refetch()} />;
 
-  const { request, quotes, assignments, payment, review, history, mechanic, vehicle } = detail.data;
+  const { request, quotes, offers, assignments, payment, review, history, mechanic, vehicle } = detail.data;
   const category = categories?.find((c) => c.id === request.category_id);
   const pendingQuote = quotes.find((q) => q.status === 'proposed');
   const acceptedQuote = quotes.find((q) => q.status === 'accepted');
@@ -277,22 +282,46 @@ export default function RequestTrackingPage() {
               ? 'Si vous refusez, le professionnel s’en tient au devis déjà validé.'
               : 'En validant, vous acceptez ce montant. Tout supplément devra être de nouveau validé par vous.'}
           </p>
-          <div className="mt-4 grid grid-cols-2 gap-2">
-            <Button variant="secondary" loading={busy === 'reject'} onClick={() => run('reject', () => act(() => respondToQuote(pendingQuote.id, false), 'Devis refusé.'))}>
-              Refuser
-            </Button>
-            <Button loading={busy === 'accept'} onClick={() => run('accept', () => act(() => respondToQuote(pendingQuote.id, true), 'Devis validé.'))}>
-              Valider le devis
-            </Button>
-          </div>
+          <ClientQuoteActions
+            quote={pendingQuote}
+            offers={offers}
+            acceptedTotal={request.status === 'in_progress' ? acceptedQuote?.total_amount ?? null : null}
+            maxOffers={maxOffers}
+            minRatio={minOfferRatio}
+            busy={busy}
+            onAccept={() => run('accept', () => act(() => respondToQuote(pendingQuote.id, true), 'Devis validé.'))}
+            onReject={() => run('reject', () => act(() => respondToQuote(pendingQuote.id, false), 'Devis refusé.'))}
+            onPropose={(amount, message) =>
+              run('offer', async () => {
+                try {
+                  await proposePrice(pendingQuote.id, amount, message);
+                  toast.success('Proposition envoyée au professionnel.');
+                  refresh();
+                } catch (e) {
+                  toast.error(errorMessage(e));
+                  throw e;
+                }
+              })
+            }
+          />
+          {offers.length > 0 && (
+            <div className="mt-4 border-t border-white/10 pt-4">
+              <OfferHistory offers={offers} quotes={quotes} viewer="client" />
+            </div>
+          )}
         </Card>
       )}
 
       {/* Devis validé */}
       {acceptedQuote && !pendingQuote && !['paid', 'closed'].includes(request.status) && (
         <Card>
-          <p className="mb-3 font-bold">Devis validé</p>
+          <p className="mb-3 font-bold">{acceptedQuote.offer_id ? 'Prix négocié validé' : 'Devis validé'}</p>
           <QuoteBreakdown quote={acceptedQuote} />
+          {offers.length > 0 && (
+            <div className="mt-4 border-t border-white/10 pt-4">
+              <OfferHistory offers={offers} quotes={quotes} viewer="client" />
+            </div>
+          )}
         </Card>
       )}
 
