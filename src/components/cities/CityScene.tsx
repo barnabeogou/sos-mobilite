@@ -1,15 +1,9 @@
-import { memo, type ReactNode } from 'react';
+import { memo, useState, type ReactNode } from 'react';
 import { useSvgId } from '@/components/motion/SignalMap';
 import { cssVars } from '@/components/motion/motion';
 import type { City } from '@/domain/cities';
+import { cityPhoto, photoCredit, photoSrcSet, photoUrl } from '@/domain/cityPhotos';
 import { C, H, buildScene, genericScene, rngFor } from './scenes';
-
-/**
- * Photos haute définition facultatives, par ville (fichiers dans public/cities/).
- * Quand une photo est fournie, elle remplace l'illustration ; le nom reste en filigrane.
- * Exemple : abidjan: '/cities/abidjan.webp'
- */
-export const CITY_PHOTOS: Partial<Record<string, string>> = {};
 
 export interface SceneCity {
   slug: string;
@@ -28,7 +22,7 @@ function watermarkSize(name: string) {
  * Ville de nuit : ciel étoilé, grand nom en filigrane, monument éclairé, reflets dans l'eau.
  * Le dessin remplit son conteneur (recadrage centré, monument toujours visible).
  */
-export const CityScene = memo(function CityScene({
+const IllustratedScene = memo(function IllustratedScene({
   city,
   showName = true,
   className,
@@ -86,7 +80,6 @@ export const CityScene = memo(function CityScene({
   const fs = watermarkSize(upper);
   // Dans le ciel, en partie derrière le monument (comme sur la maquette).
   const baseline = 48 + fs * 0.8;
-  const photo = CITY_PHOTOS[city.slug];
   const water = Boolean(city.water);
 
   const mirrored = (content: ReactNode) => (
@@ -229,10 +222,7 @@ export const CityScene = memo(function CityScene({
       <ellipse cx="500" cy={H} rx="620" ry="150" fill={`url(#${ids.horizon})`} />
       <ellipse cx="500" cy={H + 6} rx="560" ry="96" fill={`url(#${ids.city})`} />
 
-      {photo ? (
-        <image href={photo} x="0" y="0" width="1000" height="360" preserveAspectRatio="xMidYMid slice" />
-      ) : (
-        <>
+      <>
           <g className="cs-clouds" aria-hidden>
             <ellipse cx="210" cy="150" rx="230" ry="26" fill={`url(#${ids.cloud})`} />
             <ellipse cx="760" cy="118" rx="260" ry="22" fill={`url(#${ids.cloud})`} />
@@ -253,8 +243,7 @@ export const CityScene = memo(function CityScene({
               <path d="M850 46 a 18 18 0 1 0 8 30 a 14 14 0 1 1 -8 -30 Z" fill="#F4E6C4" opacity="0.9" />
             </g>
           )}
-        </>
-      )}
+      </>
 
       {showName && (
         <text
@@ -271,7 +260,6 @@ export const CityScene = memo(function CityScene({
         </text>
       )}
 
-      {!photo && (
         <g className="cs-scene">
           {parts.back}
           <g className="cs-landmark">{parts.landmark}</g>
@@ -327,7 +315,91 @@ export const CityScene = memo(function CityScene({
           )}
           {parts.front}
         </g>
-      )}
     </svg>
+  );
+});
+
+/** Grand nom de la ville en filigrane, par-dessus une photo (même cadrage que l'illustration). */
+function Watermark({ name, framing }: { name: string; framing: 'bottom' | 'center' }) {
+  const id = useSvgId(`wm-${name}`);
+  const upper = name.toUpperCase();
+  const fs = watermarkSize(upper);
+  const baseline = 48 + fs * 0.8;
+  return (
+    <svg
+      viewBox="0 0 1000 360"
+      preserveAspectRatio={framing === 'bottom' ? 'xMidYMax slice' : 'xMidYMid slice'}
+      className="cs-photo-name"
+      aria-hidden
+    >
+      <defs>
+        <linearGradient id={id} gradientUnits="userSpaceOnUse" x1="0" y1={baseline - fs * 0.75} x2="0" y2={baseline + 4}>
+          <stop offset="0" stopColor="#E4EEFF" stopOpacity="0.62" />
+          <stop offset="1" stopColor="#A9CCFF" stopOpacity="0.14" />
+        </linearGradient>
+      </defs>
+      <text x="500" y={baseline} textAnchor="middle" className="cs-name" fontSize={fs} fill={`url(#${id})`} stroke="rgba(214,232,255,0.3)" strokeWidth="1">
+        {upper}
+      </text>
+    </svg>
+  );
+}
+
+/**
+ * Ville de nuit : photo de la ville quand on en a une (Wikimedia Commons, licence libre),
+ * sinon l'illustration. L'illustration reste affichée pendant le chargement et si la photo
+ * ne peut pas être chargée.
+ */
+export const CityScene = memo(function CityScene({
+  city,
+  showName = true,
+  className,
+  framing = 'bottom',
+  priority = false,
+  credit = false,
+}: {
+  city: SceneCity;
+  showName?: boolean;
+  className?: string;
+  framing?: 'bottom' | 'center';
+  /** Bandeau en haut de page : chargement immédiat ; vignettes : à l'approche de l'écran. */
+  priority?: boolean;
+  /** Afficher l'auteur et la licence sur la photo (obligatoire hors page « Crédits photos »). */
+  credit?: boolean;
+}) {
+  const photo = cityPhoto(city.slug);
+  // 0 : CDN d'images, 1 : source directe, 2 : abandon (illustration seule)
+  const [attempt, setAttempt] = useState(0);
+  const [loaded, setLoaded] = useState(false);
+  if (!photo || attempt > 1) return <IllustratedScene city={city} showName={showName} className={className} framing={framing} />;
+
+  const viaCdn = attempt === 0 && import.meta.env.PROD;
+  return (
+    <div className={['cs cs-photo', className].filter(Boolean).join(' ')} data-loaded={loaded || undefined} data-tone={photo.tone}>
+      {!loaded && <IllustratedScene city={city} showName={false} framing={framing} />}
+      <img
+        key={attempt}
+        src={photoUrl(photo, 1080, viaCdn)}
+        srcSet={photoSrcSet(photo, viaCdn)}
+        sizes={framing === 'center' ? '(min-width: 1024px) 20vw, (min-width: 640px) 33vw, 50vw' : '(min-width: 1024px) 1024px, 100vw'}
+        alt={`${city.name} — ${photo.caption}`}
+        loading={priority ? 'eager' : 'lazy'}
+        decoding="async"
+        {...{ fetchpriority: priority ? 'high' : 'auto' }}
+        style={{ objectPosition: photo.position }}
+        onLoad={() => setLoaded(true)}
+        onError={() => {
+          setLoaded(false);
+          setAttempt((a) => a + 1);
+        }}
+      />
+      <span className="cs-grade" aria-hidden />
+      {showName && <Watermark name={city.name} framing={framing} />}
+      {credit && loaded && (
+        <a href={photo.page} target="_blank" rel="noopener noreferrer" className="cs-credit">
+          {photoCredit(photo)}
+        </a>
+      )}
+    </div>
   );
 });

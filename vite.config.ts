@@ -33,7 +33,18 @@ export default defineConfig({
         navigateFallback: '/index.html',
         // Les appels Supabase (API, auth, stockage) ne sont jamais mis en cache :
         // les données de dépannage doivent toujours être à jour.
-        runtimeCaching: [],
+        // Seules les photos des villes (CDN d'images) sont gardées, pour un affichage instantané.
+        runtimeCaching: [
+          {
+            urlPattern: ({ url }) => url.pathname === '/.netlify/images',
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'photos-villes',
+              expiration: { maxEntries: 60, maxAgeSeconds: 30 * 24 * 3600 },
+              cacheableResponse: { statuses: [200] },
+            },
+          },
+        ],
       },
       devOptions: { enabled: false },
     }),

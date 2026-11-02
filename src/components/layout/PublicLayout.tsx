@@ -91,6 +91,9 @@ export function PublicLayout() {
             <Link to="/confidentialite" className="text-silver-300 hover:text-white">
               Confidentialité
             </Link>
+            <Link to="/credits-photos" className="text-silver-300 hover:text-white">
+              Crédits photos
+            </Link>
           </div>
           <div className="flex gap-3 rounded-2xl border border-alert-500/30 bg-alert-500/[0.06] p-4 text-xs text-silver-300">
             <ShieldAlert className="h-5 w-5 shrink-0 text-alert-500" aria-hidden />

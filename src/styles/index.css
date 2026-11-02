@@ -321,6 +321,25 @@
 .cs * { transform-box: fill-box; transform-origin: center; }
 .cs-name { font-family: Montserrat, system-ui, sans-serif; font-weight: 800; letter-spacing: 0.01em; }
 .cs-shoot { opacity: 0; }
+/* Photo de ville : fondu à l'arrivée, ambiance de nuit pour les photos de jour. */
+.cs-photo { position: relative; overflow: hidden; background: #030912; }
+.cs-photo > svg.cs, .cs-photo > img, .cs-photo > .cs-grade, .cs-photo > .cs-photo-name { position: absolute; inset: 0; width: 100%; height: 100%; }
+.cs-photo > img { object-fit: cover; opacity: 0; transform: scale(1.03); transition: opacity 0.9s var(--ease-out), transform 1.6s var(--ease-out); }
+.cs-photo[data-loaded] > img { opacity: 1; transform: none; }
+.cs-photo[data-tone='day'] > img { filter: brightness(0.86) saturate(1.1) contrast(1.08) hue-rotate(-6deg); }
+.cs-photo[data-tone='night'] > img { filter: saturate(1.1) contrast(1.05); }
+.cs-grade { pointer-events: none; background: linear-gradient(180deg, rgba(3, 9, 18, 0.62) 0%, rgba(3, 9, 18, 0.08) 34%, rgba(3, 9, 18, 0) 60%, rgba(3, 9, 18, 0.35) 100%); }
+.cs-photo[data-tone='day'] > .cs-grade {
+  background:
+    linear-gradient(180deg, rgba(3, 9, 18, 0.72) 0%, rgba(3, 9, 18, 0.1) 40%, rgba(3, 9, 18, 0) 62%, rgba(3, 9, 18, 0.4) 100%),
+    linear-gradient(0deg, rgba(18, 58, 130, 0.28), rgba(18, 58, 130, 0.28));
+}
+.cs-photo-name { pointer-events: none; mix-blend-mode: screen; }
+.cs-credit {
+  position: absolute; right: 0.6rem; top: 0.5rem; border-radius: 0.3rem; padding: 0.1rem 0.4rem;
+  font-size: 10px; line-height: 1.25; color: rgb(255 255 255 / 0.62); background: rgb(3 9 18 / 0.45); backdrop-filter: blur(6px);
+}
+.cs-credit:hover { color: #fff; }
 @keyframes cs-twinkle { from { opacity: 0.12; } to { opacity: 0.9; } }
 @keyframes cs-flicker { 0%, 100% { opacity: 0.95; } 44% { opacity: 0.5; } 52% { opacity: 0.9; } }
 @keyframes cs-beacon { 0%, 100% { opacity: 1; } 50% { opacity: 0.12; } }

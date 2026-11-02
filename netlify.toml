@@ -13,6 +13,10 @@
   VITE_APP_URL = "https://sos-mobilite.netlify.app"
   VITE_ENABLE_PHONE_AUTH = "false"
 
+# CDN d'images : photos des villes (Wikimedia Commons) redimensionnées et servies depuis notre domaine.
+[images]
+  remote_images = ['https://thumb\.wikimedia\.org/wikipedia/commons/.*', 'https://upload\.wikimedia\.org/wikipedia/commons/.*']
+
 [[redirects]]
   from = "/*"
   to = "/index.html"

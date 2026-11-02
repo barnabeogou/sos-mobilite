@@ -2,6 +2,7 @@ import { useRef } from 'react';
 import { MapPin } from 'lucide-react';
 import { Reveal } from '@/components/motion/Reveal';
 import { CITIES, type City } from '@/domain/cities';
+import { cityPhoto } from '@/domain/cityPhotos';
 import { CityScene } from './CityScene';
 import { usePauseOffscreen } from './CityHero';
 
@@ -18,7 +19,7 @@ function Tile({ city, delay }: { city: City; delay: number }) {
           <MapPin className="h-3.5 w-3.5 shrink-0 text-alert-500" aria-hidden />
           {city.name}
         </span>
-        <span className="mt-0.5 block truncate text-xs text-silver-400">{city.landmark}</span>
+        <span className="mt-0.5 block truncate text-xs text-silver-400">{cityPhoto(city.slug)?.caption ?? city.landmark}</span>
       </figcaption>
     </Reveal>
   );

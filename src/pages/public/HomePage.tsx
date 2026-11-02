@@ -155,6 +155,12 @@ export function HomePage() {
         <div className="mt-8">
           <CityTiles />
         </div>
+        <p className="mt-3 text-center text-xs text-silver-500">
+          Photos : Wikimedia Commons, licences libres —{' '}
+          <Link to="/credits-photos" className="underline hover:text-white">
+            crédits
+          </Link>
+        </p>
         <p className="mt-6 flex items-center justify-center gap-3 text-center text-xs font-semibold uppercase tracking-[0.25em] text-silver-500">
           <span className="h-px w-8 bg-alert-500" aria-hidden /> Toujours à vos côtés <span className="h-px w-8 bg-alert-500" aria-hidden />
         </p>

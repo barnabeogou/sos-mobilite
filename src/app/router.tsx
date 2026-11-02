@@ -28,6 +28,7 @@ const S = (el: ReactNode) => <Suspense fallback={<LoadingBlock />}>{el}</Suspens
 
 // Pages publiques secondaires & authentification
 const ServicesPage = lazy(() => import('@/pages/public/ServicesPage'));
+const PhotoCreditsPage = lazy(() => import('@/pages/public/PhotoCreditsPage'));
 const PrivacyPage = lazy(() => import('@/pages/public/PrivacyPage'));
 const LoginPage = lazy(() => import('@/pages/auth/LoginPage'));
 const ClientSignUpPage = lazy(() => import('@/pages/auth/ClientSignUpPage'));
@@ -107,6 +108,7 @@ export const router = createBrowserRouter([
       { path: '/', element: <HomePage /> },
       { path: '/services', element: S(<ServicesPage />) },
       { path: '/confidentialite', element: S(<PrivacyPage />) },
+      { path: '/credits-photos', element: S(<PhotoCreditsPage />) },
     ],
   },
   { path: '/connexion', element: S(<RedirectIfAuthenticated><LoginPage /></RedirectIfAuthenticated>) },

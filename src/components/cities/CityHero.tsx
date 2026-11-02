@@ -3,6 +3,7 @@ import { prefersReducedMotion } from '@/components/motion/motion';
 import { MapPin } from 'lucide-react';
 import { useProfile } from '@/hooks/useAuth';
 import { cityBySlug, findCity, findLocality, type City } from '@/domain/cities';
+import { cityPhoto } from '@/domain/cityPhotos';
 import { CityScene, type SceneCity } from './CityScene';
 
 /** Ville de l'utilisateur (profil) : grande ville illustrée, sinon sa ville avec un décor générique. */
@@ -97,21 +98,24 @@ export function CityHero({
   usePauseOffscreen(ref);
   useHeroParallax(ref);
   const c = typeof city === 'string' ? cityBySlug(city) : city;
+  // Avec une photo, le repère n'indique que la ville (la photo peut être remplacée par l'illustration).
+  const landmark = cityPhoto(c.slug) ? null : c.landmark;
 
   return (
     <section ref={ref} className="city-hero relative -mx-4 -mt-[85px] mb-6 md:mx-0 md:mt-0 md:mb-8">
       <div className="city-hero-art relative h-[310px] overflow-hidden bg-[#030912] md:h-auto md:aspect-[3/1] md:rounded-3xl md:border md:border-white/10">
         {/* Sur téléphone, le décor commence sous la barre du haut : le monument reste entièrement visible. */}
         <div className="cs-zoom absolute inset-x-0 bottom-0 top-14 md:top-0">
-          <CityScene city={c} />
+          <CityScene city={c} priority credit />
         </div>
         <div className="pointer-events-none absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-night-950/80 to-transparent md:hidden" />
         <div className="pointer-events-none absolute inset-x-0 bottom-0 h-32 bg-gradient-to-b from-transparent via-night-900/70 to-night-900" />
+
         {pin && (
           <span className="city-pin absolute bottom-20 right-4 inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-night-950/55 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wider text-silver-200 backdrop-blur md:bottom-6 md:right-6">
             <MapPin className="h-3.5 w-3.5 text-alert-500" aria-hidden />
             {c.name}
-            {c.landmark && <span className="hidden font-medium normal-case tracking-normal text-silver-400 md:inline"> · {c.landmark}</span>}
+            {landmark && <span className="hidden font-medium normal-case tracking-normal text-silver-400 md:inline"> · {landmark}</span>}
           </span>
         )}
       </div>
