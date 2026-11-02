@@ -122,6 +122,14 @@ en espèces. Sans mot de passe de transfert, ou si CinetPay exige la validation 
 déclarée), les versements restent « À verser » et se font depuis le compte CinetPay, puis sont marqués « Versé » dans
 l’administration. Paiement en double, montant différent ou référence inconnue : l’équipe opérations est alertée.
 
+### Photos des villes
+
+Les bandeaux et la section « Les grandes villes » utilisent des photos de **Wikimedia Commons** sous licence libre
+(liste, auteurs et licences dans `src/domain/cityPhotos.ts`, affichés sur la page `/credits-photos`). Elles sont servies
+par le CDN d’images de Netlify (`[images]` dans `netlify.toml`) ; si une photo ne charge pas, l’illustration de la ville
+s’affiche à la place. Pour remplacer une photo : choisir une image sous CC0, CC BY ou CC BY-SA, renseigner l’URL de la
+vignette 1920 px, la fiche Commons, l’auteur et la licence, puis vérifier la page des crédits.
+
 ## 4. Tests
 
 ```bash

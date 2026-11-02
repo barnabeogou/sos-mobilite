@@ -157,7 +157,7 @@ export const CITY_PHOTOS: Record<string, CityPhoto> = {
   },
 };
 
-export const PHOTO_EDITS = 'recadrée, redimensionnée, couleurs retouchées';
+export const PHOTO_EDITS = 'recadrées, redimensionnées et retouchées (couleurs)';
 
 export function cityPhoto(slug: string | null | undefined): CityPhoto | null {
   return (slug && CITY_PHOTOS[slug]) || null;
