@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { BadgeCheck, Clock3, Crosshair, MapPin, UsersRound } from 'lucide-react';
+import { BadgeCheck, Clock3, Crosshair, FileText, KeyRound, MapPin, UsersRound } from 'lucide-react';
 import { useCategories } from '@/hooks/queries';
 import { Button, ButtonLink } from '@/components/ui/Button';
 import { Select } from '@/components/ui/Field';
@@ -13,6 +13,12 @@ import { mechanicKindLabel } from '@/domain/catalog';
 import { errorMessage } from '@/lib/errors';
 
 type Sort = 'distance' | 'rating';
+
+const TRUST = [
+  { icon: BadgeCheck, title: 'Professionnels vérifiés', text: 'Pièces justificatives contrôlées par l’équipe avant toute mission.' },
+  { icon: FileText, title: 'Prix validé avant le départ', text: 'Le pro ne se déplace qu’une fois son devis accepté.' },
+  { icon: KeyRound, title: 'Code d’arrivée', text: 'Vous donnez un code au pro à son arrivée : c’est bien lui.' },
+];
 
 export default function NearbyMechanicsPage() {
   const { data: categories } = useCategories();
@@ -58,6 +64,19 @@ export default function NearbyMechanicsPage() {
             Voir les professionnels autour de moi
           </Button>
           {geoError && <ErrorState message={geoError} />}
+          <ul className="stagger grid gap-3 pt-3 sm:grid-cols-3">
+            {TRUST.map(({ icon: Icon, title, text }) => (
+              <li key={title} className="flex gap-3 rounded-2xl border border-white/5 bg-night-850/60 p-4">
+                <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-electric-500/10 text-electric-300">
+                  <Icon className="h-5 w-5" aria-hidden />
+                </span>
+                <span>
+                  <span className="block font-semibold text-white">{title}</span>
+                  <span className="mt-0.5 block text-sm text-silver-400">{text}</span>
+                </span>
+              </li>
+            ))}
+          </ul>
         </div>
       ) : (
         <>

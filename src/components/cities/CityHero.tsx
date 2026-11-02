@@ -1,4 +1,5 @@
 import { useEffect, useRef, type ReactNode } from 'react';
+import { prefersReducedMotion } from '@/components/motion/motion';
 import { MapPin } from 'lucide-react';
 import { useProfile } from '@/hooks/useAuth';
 import { cityBySlug, findCity, findLocality, type City } from '@/domain/cities';
@@ -39,6 +40,35 @@ export function usePauseOffscreen(ref: React.RefObject<HTMLElement>) {
 }
 
 /**
+ * Profondeur au défilement : le décor descend moins vite que la page et le nom en filigrane
+ * s'efface (variable CSS `--sy`, mise à jour au plus une fois par image et seulement près du haut).
+ */
+function useHeroParallax(ref: React.RefObject<HTMLElement>) {
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || prefersReducedMotion()) return;
+    let frame = 0;
+    let last = -1;
+    const update = () => {
+      frame = 0;
+      const y = Math.min(360, Math.max(0, window.scrollY));
+      if (y === last) return;
+      last = y;
+      el.style.setProperty('--sy', String(Math.round(y)));
+    };
+    const onScroll = () => {
+      if (!frame) frame = requestAnimationFrame(update);
+    };
+    update();
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => {
+      cancelAnimationFrame(frame);
+      window.removeEventListener('scroll', onScroll);
+    };
+  }, [ref]);
+}
+
+/**
  * Bandeau de rubrique : une grande ville de Côte d'Ivoire de nuit, son nom en filigrane,
  * puis le titre de la page. Sur téléphone, le décor passe sous la barre du haut (pleine largeur).
  */
@@ -65,6 +95,7 @@ export function CityHero({
 }) {
   const ref = useRef<HTMLElement>(null);
   usePauseOffscreen(ref);
+  useHeroParallax(ref);
   const c = typeof city === 'string' ? cityBySlug(city) : city;
 
   return (
